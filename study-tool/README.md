@@ -1,3 +1,65 @@
+# FernUni Hagen Study Organizer
+
+Studienorganisations-Tool für das Fernstudium an der FernUniversität Hagen –
+speziell für Berufstätige, die nebenberuflich studieren.
+
+## Starten
+
+```bash
+cd study-tool
+npm install
+npm run dev
+```
+Dann im Browser öffnen: http://localhost:5173
+Features
+Dashboard
+	∙	Tagesübersicht mit heutigen Terminen
+	∙	Lernstreak (aufeinanderfolgende Lerntage)
+	∙	Wochengrafik der Lernaktivität
+	∙	Sofortanzeige fälliger Karteikarten
+	∙	Kommende Prüfungen auf einen Blick
+	∙	Modulfortschritt mit Lesestatus und Kartenstand
+Module
+	∙	Anlegen mit FernUni-Modulnummer, ECTS, Semester und Prüfungsdatum
+	∙	Farbkodierung pro Modul
+	∙	Statusfilter: Aktiv / Geplant / Pausiert / Abgeschlossen
+	∙	Modulübergreifende Statistiken (Lernminuten, fällige Karten, Briefe)
+Studienbriefe (PDF)
+	∙	PDF-Upload direkt im Browser
+	∙	Integrierter PDF-Viewer
+	∙	Lesefortschritt wird automatisch gespeichert – du landest beim nächsten
+Öffnen wieder auf der richtigen Seite
+	∙	Lesezeichen pro Seite mit eigenem Label
+	∙	Notizen pro Seite
+	∙	Fortschrittsbalken pro Dokument
+Karteikarten
+	∙	SM-2 Spaced-Repetition-Algorithmus (wie Anki)
+	∙	6-stufige Bewertung nach jeder Karte
+	∙	Automatische Berechnung des nächsten Wiederholungstermins
+	∙	Lernmodus mit Fortschrittsanzeige
+	∙	Tags pro Karte
+	∙	Filterung nach Modul
+Kalender & Studienplan
+	∙	Termintypen: Prüfung, Abgabe, Lernblock, Präsenzveranstaltung, Erinnerung
+	∙	Monatsansicht mit farbigen Ereignissen
+	∙	Tagesdetailansicht mit Terminverwaltung
+	∙	Lernsessions erfassen (Datum, Modul, Dauer, Thema)
+	∙	Liste kommender Termine in der Seitenleiste
+	∙	Filterung nach Modul
+Einstellungen
+	∙	Backup exportieren (JSON-Datei)
+	∙	Backup importieren (Wiederherstellung)
+	∙	Browser-Benachrichtigungen aktivieren
+	∙	Direktlinks zur Virtuellen Universität, Prüfungsanmeldung und Bibliothek
+	∙	Gesamtstatistiken auf einen Blick
+Datenspeicherung
+Alle Daten werden ausschließlich lokal im Browser gespeichert (localStorage).
+Es gibt keinen Server und keine Cloud-Synchronisation. Regelmäßige Backups über
+die Einstellungsseite werden empfohlen.
+
+
+
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
