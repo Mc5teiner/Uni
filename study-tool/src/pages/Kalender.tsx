@@ -229,12 +229,15 @@ function MentoriatImport({ onImport, onCancel }: {
   const { data } = useApp()
   const [raw, setRaw] = useState('')
   const [moduleId, setModuleId] = useState(data.modules[0]?.id ?? '')
+  const [mentor, setMentor] = useState('')
+  const [link, setLink] = useState('')
   const [rows, setRows] = useState<ParsedMentoriat[]>([])
 
   const parse = () => setRows(parseMentoriatTable(raw))
   const toggle = (i: number) => setRows(rs => rs.map((r, idx) => idx === i ? { ...r, selected: !r.selected } : r))
 
   const handleImport = () => {
+    const descParts = [mentor && `Mentor: ${mentor}`, link && `Link: ${link}`].filter(Boolean)
     const events = rows
       .filter(r => r.selected)
       .map(r => ({
@@ -244,6 +247,7 @@ function MentoriatImport({ onImport, onCancel }: {
         endTime: r.endTime,
         type: 'mentoriat' as const,
         moduleId: moduleId || undefined,
+        description: descParts.join('\n') || undefined,
         completed: false,
       }))
     onImport(events)
@@ -269,6 +273,26 @@ function MentoriatImport({ onImport, onCancel }: {
               value={raw}
               onChange={e => { setRaw(e.target.value); setRows([]) }}
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Mentor</label>
+              <input
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                placeholder="Name des Mentors..."
+                value={mentor} onChange={e => setMentor(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Veranstaltungslink</label>
+              <input
+                type="url"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                placeholder="https://..."
+                value={link} onChange={e => setLink(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="flex items-end gap-3">
