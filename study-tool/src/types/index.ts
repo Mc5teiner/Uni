@@ -107,7 +107,7 @@ export interface FlashcardDeck {
 // Calendar & Study Planning
 // ============================================================
 
-export type EventType = 'pruefung' | 'abgabe' | 'lernblock' | 'praesenzveranstaltung' | 'erinnerung'
+export type EventType = 'pruefung' | 'abgabe' | 'lernblock' | 'praesenzveranstaltung' | 'erinnerung' | 'mentoriat'
 
 export interface CalendarEvent {
   id: string

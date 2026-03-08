@@ -1,19 +1,59 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import type { Flashcard, FlashcardDifficulty } from '../types'
 import { applyReview, getDueCards, getDifficultyLabel, getDifficultyColor } from '../utils/spaceRepetition'
 import { format, parseISO, differenceInDays } from 'date-fns'
-import { Plus, BrainCircuit, Check, X, Pencil, Layers, Tag, ImageIcon, RefreshCw } from 'lucide-react'
+import { Plus, BrainCircuit, Check, X, Pencil, Layers, Tag, ImageIcon, RefreshCw, ZoomIn } from 'lucide-react'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function CardImage({ src, alt }: { src: string; alt: string }) {
+function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [onClose])
+
   return (
-    <img
-      src={src}
-      alt={alt}
-      className="max-w-full max-h-48 rounded-lg border border-slate-200 mt-3 object-contain"
-    />
+    <div
+      className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <button
+        className="absolute top-4 right-4 text-white/70 hover:text-white p-2 rounded-full bg-black/40 hover:bg-black/60 transition-colors"
+        onClick={onClose}
+      >
+        <X size={22} />
+      </button>
+      <img
+        src={src}
+        alt={alt}
+        className="max-w-full max-h-[90vh] rounded-xl shadow-2xl object-contain"
+        onClick={e => e.stopPropagation()}
+      />
+    </div>
+  )
+}
+
+function CardImage({ src, alt }: { src: string; alt: string }) {
+  const [lightbox, setLightbox] = useState(false)
+  return (
+    <>
+      <div
+        className="relative inline-block mt-3 cursor-zoom-in group"
+        onClick={e => { e.stopPropagation(); setLightbox(true) }}
+      >
+        <img
+          src={src}
+          alt={alt}
+          className="max-w-full max-h-48 rounded-lg border border-slate-200 object-contain"
+        />
+        <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/0 group-hover:bg-black/20 transition-colors">
+          <ZoomIn size={20} className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+        </div>
+      </div>
+      {lightbox && <ImageLightbox src={src} alt={alt} onClose={() => setLightbox(false)} />}
+    </>
   )
 }
 
@@ -460,7 +500,8 @@ export default function KarteikartenPage() {
             return (
               <div
                 key={card.id}
-                className={`bg-white rounded-lg border p-4 flex items-center gap-4 ${isDue ? 'border-red-200 bg-red-50' : 'border-slate-200'}`}
+                onClick={() => { setReviewCards([card]); setReviewing(true) }}
+                className={`bg-white rounded-lg border p-4 flex items-center gap-4 cursor-pointer hover:shadow-sm transition-shadow ${isDue ? 'border-red-200 bg-red-50 hover:border-red-300' : 'border-slate-200 hover:border-slate-300'}`}
               >
                 {/* Card content */}
                 <div className="flex-1 min-w-0">
@@ -489,13 +530,13 @@ export default function KarteikartenPage() {
                   <span className="text-xs text-slate-300">|</span>
                   <span className="text-xs text-slate-400">∅ {card.interval}d</span>
                   <button
-                    onClick={() => { setEditCard(card); setShowForm(true) }}
+                    onClick={e => { e.stopPropagation(); setEditCard(card); setShowForm(true) }}
                     className="p-1.5 text-slate-400 hover:text-slate-700"
                   >
                     <Pencil size={14} />
                   </button>
                   <button
-                    onClick={() => { if (confirm('Karte löschen?')) removeFlashcard(card.id) }}
+                    onClick={e => { e.stopPropagation(); if (confirm('Karte löschen?')) removeFlashcard(card.id) }}
                     className="p-1.5 text-slate-400 hover:text-red-600"
                   >
                     <X size={14} />

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useApp } from '../context/AppContext'
 import type { CalendarEvent, EventType, StudySession } from '../types'
 import {
@@ -7,7 +7,7 @@ import {
   isToday
 } from 'date-fns'
 import { de } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Plus, X, Check, Clock } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, X, Check, Clock, Upload } from 'lucide-react'
 
 const EVENT_TYPE_LABELS: Record<EventType, string> = {
   pruefung: 'Prüfung',
@@ -15,6 +15,7 @@ const EVENT_TYPE_LABELS: Record<EventType, string> = {
   lernblock: 'Lernblock',
   praesenzveranstaltung: 'Präsenzveranstaltung',
   erinnerung: 'Erinnerung',
+  mentoriat: 'Mentoriat',
 }
 
 const EVENT_TYPE_COLORS: Record<EventType, string> = {
@@ -23,6 +24,7 @@ const EVENT_TYPE_COLORS: Record<EventType, string> = {
   lernblock: 'bg-blue-500',
   praesenzveranstaltung: 'bg-purple-500',
   erinnerung: 'bg-slate-400',
+  mentoriat: 'bg-teal-500',
 }
 
 const EVENT_TYPE_LIGHT: Record<EventType, string> = {
@@ -31,6 +33,7 @@ const EVENT_TYPE_LIGHT: Record<EventType, string> = {
   lernblock: 'bg-blue-50 border-blue-200 text-blue-800',
   praesenzveranstaltung: 'bg-purple-50 border-purple-200 text-purple-800',
   erinnerung: 'bg-slate-50 border-slate-200 text-slate-600',
+  mentoriat: 'bg-teal-50 border-teal-200 text-teal-800',
 }
 
 // ─── Event Form ──────────────────────────────────────────────────────────────
@@ -190,6 +193,224 @@ function SessionLogger({ onLog, onCancel }: { onLog: (s: Omit<StudySession, 'id'
   )
 }
 
+// ─── Module-derived virtual events ───────────────────────────────────────────
+
+function getModuleDerivedEvents(modules: import('../types').StudyModule[]): CalendarEvent[] {
+  const events: CalendarEvent[] = []
+  for (const m of modules) {
+    // Legacy single examDate
+    if (m.examDate) {
+      events.push({
+        id: `__module__exam__${m.id}__legacy`,
+        moduleId: m.id,
+        title: `Prüfung – ${m.moduleNumber} ${m.name}`,
+        date: m.examDate,
+        type: 'pruefung',
+      })
+    }
+    // exams[]
+    for (const ex of m.exams ?? []) {
+      if (!ex.date) continue
+      events.push({
+        id: `__module__exam__${m.id}__${ex.id}`,
+        moduleId: m.id,
+        title: `Prüfung – ${m.moduleNumber} ${m.name}`,
+        date: ex.date,
+        type: 'pruefung',
+      })
+    }
+    // assignments[]
+    for (const a of m.assignments ?? []) {
+      if (!a.date) continue
+      events.push({
+        id: `__module__assign__${m.id}__${a.id}`,
+        moduleId: m.id,
+        title: `${a.title} – ${m.moduleNumber} ${m.name}`,
+        date: a.date,
+        type: 'abgabe',
+      })
+    }
+  }
+  return events
+}
+
+// ─── Mentoriat Bulk Import ────────────────────────────────────────────────────
+
+interface ParsedMentoriat {
+  date: string   // yyyy-MM-dd
+  time: string   // HH:MM
+  endTime: string
+  title: string
+  selected: boolean
+}
+
+function parseMentoriatTable(raw: string): ParsedMentoriat[] {
+  const results: ParsedMentoriat[] = []
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean)
+  const re = /^\w+\s+(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}:\d{2})\s+(\d{2}:\d{2})\s+(.+)$/
+  for (const line of lines) {
+    const m = line.match(re)
+    if (!m) continue
+    const [, day, month, year, start, end, thema] = m
+    results.push({
+      date: `${year}-${month}-${day}`,
+      time: start,
+      endTime: end,
+      title: `Mentoriat – ${thema.trim()}`,
+      selected: true,
+    })
+  }
+  return results
+}
+
+function MentoriatImport({ onImport, onCancel }: {
+  onImport: (events: Omit<import('../types').CalendarEvent, 'id'>[]) => void
+  onCancel: () => void
+}) {
+  const { data } = useApp()
+  const [raw, setRaw] = useState('')
+  const [moduleId, setModuleId] = useState(data.modules[0]?.id ?? '')
+  const [mentor, setMentor] = useState('')
+  const [link, setLink] = useState('')
+  const [rows, setRows] = useState<ParsedMentoriat[]>([])
+
+  const parse = () => setRows(parseMentoriatTable(raw))
+  const toggle = (i: number) => setRows(rs => rs.map((r, idx) => idx === i ? { ...r, selected: !r.selected } : r))
+
+  const handleImport = () => {
+    const descParts = [mentor && `Mentor: ${mentor}`, link && `Link: ${link}`].filter(Boolean)
+    const events = rows
+      .filter(r => r.selected)
+      .map(r => ({
+        title: r.title,
+        date: r.date,
+        time: r.time,
+        endTime: r.endTime,
+        type: 'mentoriat' as const,
+        moduleId: moduleId || undefined,
+        description: descParts.join('\n') || undefined,
+        completed: false,
+      }))
+    onImport(events)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between p-6 border-b shrink-0">
+          <h2 className="text-lg font-semibold">Mentoriate importieren</h2>
+          <button onClick={onCancel}><X size={20} /></button>
+        </div>
+
+        <div className="p-6 space-y-4 overflow-y-auto flex-1">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Tabelle einfügen <span className="text-slate-400 font-normal">(aus der Übersicht kopieren)</span>
+            </label>
+            <textarea
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-teal-500"
+              rows={6}
+              placeholder={"So 12.10.2025 08:30 14:00 Einheit 1\nSo 19.10.2025 08:30 14:00 Einheit 1\n..."}
+              value={raw}
+              onChange={e => { setRaw(e.target.value); setRows([]) }}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Mentor</label>
+              <input
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                placeholder="Name des Mentors..."
+                value={mentor} onChange={e => setMentor(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Veranstaltungslink</label>
+              <input
+                type="url"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                placeholder="https://..."
+                value={link} onChange={e => setLink(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-end gap-3">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Modul</label>
+              <select
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                value={moduleId} onChange={e => setModuleId(e.target.value)}
+              >
+                <option value="">Kein Modul</option>
+                {data.modules.map(m => <option key={m.id} value={m.id}>{m.moduleNumber} {m.name}</option>)}
+              </select>
+            </div>
+            <button
+              onClick={parse}
+              disabled={!raw.trim()}
+              className="px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 disabled:opacity-40 shrink-0"
+            >
+              Vorschau
+            </button>
+          </div>
+
+          {rows.length > 0 && (
+            <div className="border border-slate-200 rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-slate-600">
+                  <tr>
+                    <th className="px-3 py-2 text-left w-8">
+                      <input type="checkbox"
+                        checked={rows.every(r => r.selected)}
+                        onChange={e => setRows(rs => rs.map(r => ({ ...r, selected: e.target.checked })))}
+                      />
+                    </th>
+                    <th className="px-3 py-2 text-left">Datum</th>
+                    <th className="px-3 py-2 text-left">Zeit</th>
+                    <th className="px-3 py-2 text-left">Titel</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {rows.map((r, i) => (
+                    <tr key={i} className={r.selected ? '' : 'opacity-40'}>
+                      <td className="px-3 py-2">
+                        <input type="checkbox" checked={r.selected} onChange={() => toggle(i)} />
+                      </td>
+                      <td className="px-3 py-2 text-slate-700">{r.date.split('-').reverse().join('.')}</td>
+                      <td className="px-3 py-2 text-slate-500">{r.time}–{r.endTime}</td>
+                      <td className="px-3 py-2 text-slate-800">{r.title}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="px-3 py-2 bg-slate-50 text-xs text-slate-500 border-t">
+                {rows.filter(r => r.selected).length} von {rows.length} ausgewählt
+              </div>
+            </div>
+          )}
+
+          {rows.length === 0 && raw.trim() && (
+            <p className="text-sm text-amber-600">Keine Zeilen erkannt. Bitte Vorschau klicken oder Format prüfen.</p>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3 p-6 border-t shrink-0">
+          <button onClick={onCancel} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg">Abbrechen</button>
+          <button
+            onClick={handleImport}
+            disabled={rows.filter(r => r.selected).length === 0}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-40"
+          >
+            <Upload size={16} /> {rows.filter(r => r.selected).length} Termine importieren
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Calendar Grid ───────────────────────────────────────────────────────────
 
 export default function KalenderPage() {
@@ -198,6 +419,7 @@ export default function KalenderPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [showEventForm, setShowEventForm] = useState(false)
   const [showSessionForm, setShowSessionForm] = useState(false)
+  const [showMentoriatImport, setShowMentoriatImport] = useState(false)
   const [editEvent, setEditEvent] = useState<CalendarEvent | undefined>()
   const [filterModuleId, setFilterModuleId] = useState<string>('alle')
 
@@ -207,15 +429,18 @@ export default function KalenderPage() {
   const calEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
   const calDays = eachDayOfInterval({ start: calStart, end: calEnd })
 
+  const derivedEvents = useMemo(() => getModuleDerivedEvents(data.modules), [data.modules])
+  const allEvents = useMemo(() => [...data.events, ...derivedEvents], [data.events, derivedEvents])
+
   const eventsForDay = (day: Date) =>
-    data.events.filter(e => {
+    allEvents.filter(e => {
       const matchModule = filterModuleId === 'alle' || e.moduleId === filterModuleId
       return matchModule && isSameDay(parseISO(e.date), day)
     })
 
   const selectedEvents = eventsForDay(selectedDate)
 
-  const upcomingEvents = data.events
+  const upcomingEvents = allEvents
     .filter(e => parseISO(e.date) >= new Date() && (filterModuleId === 'alle' || e.moduleId === filterModuleId))
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 10)
@@ -231,6 +456,10 @@ export default function KalenderPage() {
           <button onClick={() => setShowSessionForm(true)}
             className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium">
             <Clock size={16} /> Session erfassen
+          </button>
+          <button onClick={() => setShowMentoriatImport(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm font-medium">
+            <Upload size={16} /> Mentoriate importieren
           </button>
           <button onClick={() => { setEditEvent(undefined); setShowEventForm(true) }}
             className="flex items-center gap-2 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] text-sm font-medium">
@@ -317,6 +546,7 @@ export default function KalenderPage() {
               <div className="space-y-2">
                 {selectedEvents.map(e => {
                   const module = data.modules.find(m => m.id === e.moduleId)
+                  const isVirtual = e.id.startsWith('__module__')
                   return (
                     <div key={e.id} className={`border rounded-lg p-3 ${EVENT_TYPE_LIGHT[e.type]}`}>
                       <div className="flex items-start justify-between gap-2">
@@ -325,11 +555,14 @@ export default function KalenderPage() {
                           {module && <div className="text-xs opacity-70 mt-0.5">{module.moduleNumber}</div>}
                           {e.time && <div className="text-xs mt-0.5">{e.time}{e.endTime ? ` – ${e.endTime}` : ''}</div>}
                           {e.description && <div className="text-xs mt-1 opacity-80">{e.description}</div>}
+                          {isVirtual && <div className="text-[10px] mt-1 opacity-50 italic">aus Modul</div>}
                         </div>
-                        <div className="flex gap-1 shrink-0">
-                          <button onClick={() => { setEditEvent(e); setShowEventForm(true) }} className="p-1 rounded hover:bg-black/10"><Plus size={12} /></button>
-                          <button onClick={() => { if (confirm('Termin löschen?')) removeEvent(e.id) }} className="p-1 rounded hover:bg-black/10"><X size={12} /></button>
-                        </div>
+                        {!isVirtual && (
+                          <div className="flex gap-1 shrink-0">
+                            <button onClick={() => { setEditEvent(e); setShowEventForm(true) }} className="p-1 rounded hover:bg-black/10"><Plus size={12} /></button>
+                            <button onClick={() => { if (confirm('Termin löschen?')) removeEvent(e.id) }} className="p-1 rounded hover:bg-black/10"><X size={12} /></button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )
@@ -387,6 +620,13 @@ export default function KalenderPage() {
         <SessionLogger
           onLog={(s) => { logSession(s); setShowSessionForm(false) }}
           onCancel={() => setShowSessionForm(false)}
+        />
+      )}
+
+      {showMentoriatImport && (
+        <MentoriatImport
+          onImport={(events) => { events.forEach(createEvent); setShowMentoriatImport(false) }}
+          onCancel={() => setShowMentoriatImport(false)}
         />
       )}
     </div>
