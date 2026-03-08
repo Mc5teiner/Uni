@@ -30,6 +30,7 @@ export interface StudyDocument {
   fileData: string     // base64 encoded
   totalPages: number
   currentPage: number
+  semester?: string    // e.g. "WS 2025/26"
   lastReadAt?: string
   bookmarks: Bookmark[]
   notes: DocumentNote[]
