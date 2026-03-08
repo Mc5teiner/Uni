@@ -5,6 +5,22 @@
 export type ModuleStatus = 'aktiv' | 'abgeschlossen' | 'geplant' | 'pausiert'
 export type Semester = string // e.g. "WS 2025/26"
 
+export interface ModuleExam {
+  id: string
+  date?: string       // "YYYY-MM-DD"
+  grade?: string      // e.g. "2,3"
+  passed?: boolean    // undefined = no result yet
+}
+
+export interface ModuleAssignment {
+  id: string
+  title: string       // "Einsendearbeit 1" etc.
+  date?: string       // deadline "YYYY-MM-DD"
+  grade?: string
+  done: boolean
+  passed?: boolean
+}
+
 export interface StudyModule {
   id: string
   name: string
@@ -13,7 +29,10 @@ export interface StudyModule {
   semester: Semester
   status: ModuleStatus
   color: string        // hex color for UI differentiation
-  examDate?: string    // ISO date string
+  examDate?: string    // ISO date string (legacy – use exams[] instead)
+  exams?: ModuleExam[]
+  assignments?: ModuleAssignment[]
+  moodleUrl?: string
   description?: string
   createdAt: string
 }
@@ -30,6 +49,7 @@ export interface StudyDocument {
   fileData: string     // base64 encoded
   totalPages: number
   currentPage: number
+  semester?: string    // e.g. "WS 2025/26"
   lastReadAt?: string
   bookmarks: Bookmark[]
   notes: DocumentNote[]
@@ -63,6 +83,8 @@ export interface Flashcard {
   moduleId: string
   front: string
   back: string
+  frontImage?: string   // data URL (base64 image)
+  backImage?: string    // data URL (base64 image)
   tags: string[]
   // SM-2 state
   interval: number      // days until next review
