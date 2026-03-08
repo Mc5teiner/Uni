@@ -7,7 +7,7 @@ import {
   isToday
 } from 'date-fns'
 import { de } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Plus, X, Check, Clock, Upload } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, X, Check, Clock, Upload, ExternalLink } from 'lucide-react'
 
 const EVENT_TYPE_LABELS: Record<EventType, string> = {
   pruefung: 'Prüfung',
@@ -240,7 +240,7 @@ interface ParsedMentoriat {
   date: string   // yyyy-MM-dd
   time: string   // HH:MM
   endTime: string
-  title: string
+  thema: string  // raw topic from table
   selected: boolean
 }
 
@@ -256,7 +256,7 @@ function parseMentoriatTable(raw: string): ParsedMentoriat[] {
       date: `${year}-${month}-${day}`,
       time: start,
       endTime: end,
-      title: `Mentoriat – ${thema.trim()}`,
+      thema: thema.trim(),
       selected: true,
     })
   }
@@ -270,6 +270,7 @@ function MentoriatImport({ onImport, onCancel }: {
   const { data } = useApp()
   const [raw, setRaw] = useState('')
   const [moduleId, setModuleId] = useState(data.modules[0]?.id ?? '')
+  const [optionalName, setOptionalName] = useState('')
   const [mentor, setMentor] = useState('')
   const [link, setLink] = useState('')
   const [rows, setRows] = useState<ParsedMentoriat[]>([])
@@ -278,19 +279,23 @@ function MentoriatImport({ onImport, onCancel }: {
   const toggle = (i: number) => setRows(rs => rs.map((r, idx) => idx === i ? { ...r, selected: !r.selected } : r))
 
   const handleImport = () => {
-    const descParts = [mentor && `Mentor: ${mentor}`, link && `Link: ${link}`].filter(Boolean)
+    const selectedModule = data.modules.find(m => m.id === moduleId)
+    const prefix = optionalName.trim() || (selectedModule ? `${selectedModule.moduleNumber} ${selectedModule.name}` : 'Mentoriat')
     const events = rows
       .filter(r => r.selected)
-      .map(r => ({
-        title: r.title,
-        date: r.date,
-        time: r.time,
-        endTime: r.endTime,
-        type: 'mentoriat' as const,
-        moduleId: moduleId || undefined,
-        description: descParts.join('\n') || undefined,
-        completed: false,
-      }))
+      .map(r => {
+        const titleParts = [prefix, mentor.trim() || null, r.thema].filter(Boolean)
+        return {
+          title: titleParts.join(' – '),
+          date: r.date,
+          time: r.time,
+          endTime: r.endTime,
+          type: 'mentoriat' as const,
+          moduleId: moduleId || undefined,
+          description: link.trim() || undefined,
+          completed: false,
+        }
+      })
     onImport(events)
   }
 
@@ -317,6 +322,16 @@ function MentoriatImport({ onImport, onCancel }: {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Optionaler Name <span className="text-slate-400 font-normal">(z. B. „Nur für VWL")</span>
+              </label>
+              <input
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                placeholder="Leer = Modulname wird verwendet..."
+                value={optionalName} onChange={e => setOptionalName(e.target.value)}
+              />
+            </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Mentor</label>
               <input
@@ -380,7 +395,7 @@ function MentoriatImport({ onImport, onCancel }: {
                       </td>
                       <td className="px-3 py-2 text-slate-700">{r.date.split('-').reverse().join('.')}</td>
                       <td className="px-3 py-2 text-slate-500">{r.time}–{r.endTime}</td>
-                      <td className="px-3 py-2 text-slate-800">{r.title}</td>
+                      <td className="px-3 py-2 text-slate-800">{r.thema}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -411,6 +426,81 @@ function MentoriatImport({ onImport, onCancel }: {
   )
 }
 
+// ─── Mentoriat Detail Overlay ────────────────────────────────────────────────
+
+function MentoriatDetailOverlay({ event, onClose, onEdit, onDelete }: {
+  event: CalendarEvent
+  onClose: () => void
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const { data } = useApp()
+  const module = data.modules.find(m => m.id === event.moduleId)
+  const isVirtual = event.id.startsWith('__module__')
+  const isUrl = !!event.description && (event.description.startsWith('http://') || event.description.startsWith('https://'))
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-teal-500" />
+            <span className="text-xs font-semibold text-teal-700 uppercase tracking-wide">Mentoriat</span>
+          </div>
+          <button onClick={onClose} className="p-1 rounded hover:bg-slate-100"><X size={18} /></button>
+        </div>
+        <div className="p-5 space-y-3">
+          <h2 className="text-lg font-semibold text-slate-800 leading-snug">{event.title}</h2>
+          {module && (
+            <div className="flex items-center gap-2 text-sm text-slate-600">
+              <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: module.color }} />
+              {module.moduleNumber} {module.name}
+            </div>
+          )}
+          {event.time && (
+            <div className="text-sm text-slate-600">
+              {format(parseISO(event.date), 'EEEE, dd. MMMM yyyy', { locale: de })}
+              {' · '}
+              {event.time}{event.endTime ? ` – ${event.endTime}` : ''}
+            </div>
+          )}
+          {event.description && (
+            isUrl ? (
+              <a
+                href={event.description}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm text-teal-600 hover:text-teal-800 hover:underline break-all"
+              >
+                <ExternalLink size={14} className="shrink-0" />
+                {event.description}
+              </a>
+            ) : (
+              <div className="text-sm text-slate-600 whitespace-pre-line">{event.description}</div>
+            )
+          )}
+        </div>
+        {!isVirtual && (
+          <div className="flex justify-end gap-2 px-5 pb-5">
+            <button
+              onClick={() => { if (confirm('Termin löschen?')) { onDelete(); onClose() } }}
+              className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg"
+            >
+              Löschen
+            </button>
+            <button
+              onClick={onEdit}
+              className="px-3 py-1.5 text-sm bg-teal-600 text-white hover:bg-teal-700 rounded-lg"
+            >
+              Bearbeiten
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Calendar Grid ───────────────────────────────────────────────────────────
 
 export default function KalenderPage() {
@@ -421,6 +511,7 @@ export default function KalenderPage() {
   const [showSessionForm, setShowSessionForm] = useState(false)
   const [showMentoriatImport, setShowMentoriatImport] = useState(false)
   const [editEvent, setEditEvent] = useState<CalendarEvent | undefined>()
+  const [viewMentoriat, setViewMentoriat] = useState<CalendarEvent | null>(null)
   const [filterModuleId, setFilterModuleId] = useState<string>('alle')
 
   const monthStart = startOfMonth(currentMonth)
@@ -521,7 +612,11 @@ export default function KalenderPage() {
                   </div>
                   <div className="space-y-0.5">
                     {events.slice(0, 3).map(e => (
-                      <div key={e.id} className={`text-[10px] px-1 py-0.5 rounded truncate font-medium ${EVENT_TYPE_COLORS[e.type]} text-white`}>
+                      <div
+                        key={e.id}
+                        className={`text-[10px] px-1 py-0.5 rounded truncate font-medium ${EVENT_TYPE_COLORS[e.type]} text-white ${e.type === 'mentoriat' ? 'cursor-pointer hover:opacity-80' : ''}`}
+                        onClick={e.type === 'mentoriat' ? (ev) => { ev.stopPropagation(); setViewMentoriat(e) } : undefined}
+                      >
                         {e.title}
                       </div>
                     ))}
@@ -548,7 +643,11 @@ export default function KalenderPage() {
                   const module = data.modules.find(m => m.id === e.moduleId)
                   const isVirtual = e.id.startsWith('__module__')
                   return (
-                    <div key={e.id} className={`border rounded-lg p-3 ${EVENT_TYPE_LIGHT[e.type]}`}>
+                    <div
+                      key={e.id}
+                      className={`border rounded-lg p-3 ${EVENT_TYPE_LIGHT[e.type]} ${e.type === 'mentoriat' ? 'cursor-pointer hover:shadow-sm' : ''}`}
+                      onClick={e.type === 'mentoriat' ? () => setViewMentoriat(e) : undefined}
+                    >
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <div className="font-medium text-sm">{e.title}</div>
@@ -587,7 +686,11 @@ export default function KalenderPage() {
                 {upcomingEvents.map(e => {
                   const module = data.modules.find(m => m.id === e.moduleId)
                   return (
-                    <div key={e.id} className="flex items-center gap-3">
+                    <div
+                      key={e.id}
+                      className={`flex items-center gap-3 ${e.type === 'mentoriat' ? 'cursor-pointer hover:bg-teal-50 rounded-lg px-1 -mx-1' : ''}`}
+                      onClick={e.type === 'mentoriat' ? () => setViewMentoriat(e) : undefined}
+                    >
                       <div className={`w-2 h-2 rounded-full shrink-0 ${EVENT_TYPE_COLORS[e.type]}`} />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-slate-800 truncate">{e.title}</div>
@@ -627,6 +730,15 @@ export default function KalenderPage() {
         <MentoriatImport
           onImport={(events) => { events.forEach(createEvent); setShowMentoriatImport(false) }}
           onCancel={() => setShowMentoriatImport(false)}
+        />
+      )}
+
+      {viewMentoriat && (
+        <MentoriatDetailOverlay
+          event={viewMentoriat}
+          onClose={() => setViewMentoriat(null)}
+          onEdit={() => { setEditEvent(viewMentoriat); setShowEventForm(true); setViewMentoriat(null) }}
+          onDelete={() => removeEvent(viewMentoriat.id)}
         />
       )}
     </div>
