@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useApp } from '../context/AppContext'
 import type { CalendarEvent, EventType, StudySession } from '../types'
 import {
@@ -191,6 +191,47 @@ function SessionLogger({ onLog, onCancel }: { onLog: (s: Omit<StudySession, 'id'
       </div>
     </div>
   )
+}
+
+// ─── Module-derived virtual events ───────────────────────────────────────────
+
+function getModuleDerivedEvents(modules: import('../types').StudyModule[]): CalendarEvent[] {
+  const events: CalendarEvent[] = []
+  for (const m of modules) {
+    // Legacy single examDate
+    if (m.examDate) {
+      events.push({
+        id: `__module__exam__${m.id}__legacy`,
+        moduleId: m.id,
+        title: `Prüfung – ${m.moduleNumber} ${m.name}`,
+        date: m.examDate,
+        type: 'pruefung',
+      })
+    }
+    // exams[]
+    for (const ex of m.exams ?? []) {
+      if (!ex.date) continue
+      events.push({
+        id: `__module__exam__${m.id}__${ex.id}`,
+        moduleId: m.id,
+        title: `Prüfung – ${m.moduleNumber} ${m.name}`,
+        date: ex.date,
+        type: 'pruefung',
+      })
+    }
+    // assignments[]
+    for (const a of m.assignments ?? []) {
+      if (!a.date) continue
+      events.push({
+        id: `__module__assign__${m.id}__${a.id}`,
+        moduleId: m.id,
+        title: `${a.title} – ${m.moduleNumber} ${m.name}`,
+        date: a.date,
+        type: 'abgabe',
+      })
+    }
+  }
+  return events
 }
 
 // ─── Mentoriat Bulk Import ────────────────────────────────────────────────────
@@ -388,15 +429,18 @@ export default function KalenderPage() {
   const calEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
   const calDays = eachDayOfInterval({ start: calStart, end: calEnd })
 
+  const derivedEvents = useMemo(() => getModuleDerivedEvents(data.modules), [data.modules])
+  const allEvents = useMemo(() => [...data.events, ...derivedEvents], [data.events, derivedEvents])
+
   const eventsForDay = (day: Date) =>
-    data.events.filter(e => {
+    allEvents.filter(e => {
       const matchModule = filterModuleId === 'alle' || e.moduleId === filterModuleId
       return matchModule && isSameDay(parseISO(e.date), day)
     })
 
   const selectedEvents = eventsForDay(selectedDate)
 
-  const upcomingEvents = data.events
+  const upcomingEvents = allEvents
     .filter(e => parseISO(e.date) >= new Date() && (filterModuleId === 'alle' || e.moduleId === filterModuleId))
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 10)
@@ -502,6 +546,7 @@ export default function KalenderPage() {
               <div className="space-y-2">
                 {selectedEvents.map(e => {
                   const module = data.modules.find(m => m.id === e.moduleId)
+                  const isVirtual = e.id.startsWith('__module__')
                   return (
                     <div key={e.id} className={`border rounded-lg p-3 ${EVENT_TYPE_LIGHT[e.type]}`}>
                       <div className="flex items-start justify-between gap-2">
@@ -510,11 +555,14 @@ export default function KalenderPage() {
                           {module && <div className="text-xs opacity-70 mt-0.5">{module.moduleNumber}</div>}
                           {e.time && <div className="text-xs mt-0.5">{e.time}{e.endTime ? ` – ${e.endTime}` : ''}</div>}
                           {e.description && <div className="text-xs mt-1 opacity-80">{e.description}</div>}
+                          {isVirtual && <div className="text-[10px] mt-1 opacity-50 italic">aus Modul</div>}
                         </div>
-                        <div className="flex gap-1 shrink-0">
-                          <button onClick={() => { setEditEvent(e); setShowEventForm(true) }} className="p-1 rounded hover:bg-black/10"><Plus size={12} /></button>
-                          <button onClick={() => { if (confirm('Termin löschen?')) removeEvent(e.id) }} className="p-1 rounded hover:bg-black/10"><X size={12} /></button>
-                        </div>
+                        {!isVirtual && (
+                          <div className="flex gap-1 shrink-0">
+                            <button onClick={() => { setEditEvent(e); setShowEventForm(true) }} className="p-1 rounded hover:bg-black/10"><Plus size={12} /></button>
+                            <button onClick={() => { if (confirm('Termin löschen?')) removeEvent(e.id) }} className="p-1 rounded hover:bg-black/10"><X size={12} /></button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )
