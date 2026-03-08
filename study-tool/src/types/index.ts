@@ -64,6 +64,8 @@ export interface Flashcard {
   moduleId: string
   front: string
   back: string
+  frontImage?: string   // data URL (base64 image)
+  backImage?: string    // data URL (base64 image)
   tags: string[]
   // SM-2 state
   interval: number      // days until next review
