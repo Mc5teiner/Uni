@@ -460,7 +460,8 @@ export default function KarteikartenPage() {
             return (
               <div
                 key={card.id}
-                className={`bg-white rounded-lg border p-4 flex items-center gap-4 ${isDue ? 'border-red-200 bg-red-50' : 'border-slate-200'}`}
+                onClick={() => { setReviewCards([card]); setReviewing(true) }}
+                className={`bg-white rounded-lg border p-4 flex items-center gap-4 cursor-pointer hover:shadow-sm transition-shadow ${isDue ? 'border-red-200 bg-red-50 hover:border-red-300' : 'border-slate-200 hover:border-slate-300'}`}
               >
                 {/* Card content */}
                 <div className="flex-1 min-w-0">
@@ -489,13 +490,13 @@ export default function KarteikartenPage() {
                   <span className="text-xs text-slate-300">|</span>
                   <span className="text-xs text-slate-400">∅ {card.interval}d</span>
                   <button
-                    onClick={() => { setEditCard(card); setShowForm(true) }}
+                    onClick={e => { e.stopPropagation(); setEditCard(card); setShowForm(true) }}
                     className="p-1.5 text-slate-400 hover:text-slate-700"
                   >
                     <Pencil size={14} />
                   </button>
                   <button
-                    onClick={() => { if (confirm('Karte löschen?')) removeFlashcard(card.id) }}
+                    onClick={e => { e.stopPropagation(); if (confirm('Karte löschen?')) removeFlashcard(card.id) }}
                     className="p-1.5 text-slate-400 hover:text-red-600"
                   >
                     <X size={14} />
