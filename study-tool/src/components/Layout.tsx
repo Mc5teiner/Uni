@@ -3,7 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, BookOpen, FileText, BrainCircuit,
   Calendar, Settings, LogOut, ShieldCheck, Menu, X,
-  GraduationCap,
+  GraduationCap, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
@@ -16,13 +16,15 @@ const navItems = [
   { to: '/einstellungen',icon: Settings,        label: 'Einstellungen' },
 ]
 
+const SIDEBAR_FULL = 260
+const SIDEBAR_MINI = 68
+
 const STUDY_TYPE_LABEL: Record<string, string> = {
   bachelor:   'Bachelor',
   master:     'Master',
   zertifikat: 'Zertifikat',
 }
 
-/** Returns initials from a name or username */
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/)
   if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
@@ -46,7 +48,15 @@ function UserAvatar({ name }: { name: string }) {
   )
 }
 
-function SidebarContent({ onClose }: { onClose?: () => void }) {
+function SidebarContent({
+  collapsed = false,
+  onToggle,
+  onClose,
+}: {
+  collapsed?: boolean
+  onToggle?: () => void
+  onClose?: () => void
+}) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
 
@@ -58,13 +68,17 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
   const displayName = user?.name || user?.username || ''
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* ── Logo / Branding ─────────────────────────────────────── */}
       <div
-        className="flex items-center justify-between px-5 py-5"
-        style={{ borderBottom: '1px solid var(--th-sidebar-border, rgba(255,255,255,0.08))' }}
+        className="flex items-center shrink-0 px-4 py-4"
+        style={{
+          borderBottom: '1px solid var(--th-sidebar-border, rgba(255,255,255,0.08))',
+          minHeight: '64px',
+          justifyContent: collapsed ? 'center' : 'space-between',
+        }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0 overflow-hidden">
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
             style={{
@@ -74,37 +88,55 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
           >
             <GraduationCap size={20} style={{ color: 'var(--th-sidebar-text)' }} aria-hidden="true" />
           </div>
-          <div>
-            <div
-              className="text-[10px] font-semibold uppercase tracking-widest"
-              style={{ color: 'var(--th-sidebar-muted)' }}
-            >
-              FernUniversität Hagen
+          {!collapsed && (
+            <div className="min-w-0 overflow-hidden">
+              <div
+                className="text-[10px] font-semibold uppercase tracking-widest"
+                style={{ color: 'var(--th-sidebar-muted)', whiteSpace: 'nowrap' }}
+              >
+                FernUniversität Hagen
+              </div>
+              <div
+                className="text-sm font-bold leading-tight"
+                style={{ color: 'var(--th-sidebar-text)', letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}
+              >
+                Study Organizer
+              </div>
             </div>
-            <div
-              className="text-sm font-bold leading-tight"
-              style={{ color: 'var(--th-sidebar-text)', letterSpacing: '-0.02em' }}
-            >
-              Study Organizer
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Close button — mobile only */}
         {onClose && (
           <button
             onClick={onClose}
-            className="md:hidden th-icon-btn th-nav-item"
+            className="md:hidden th-icon-btn"
+            style={{ color: 'var(--th-sidebar-muted)', flexShrink: 0 }}
             aria-label="Navigationsmenü schließen"
           >
             <X size={18} aria-hidden="true" />
+          </button>
+        )}
+
+        {/* Collapse toggle — desktop only */}
+        {onToggle && (
+          <button
+            onClick={onToggle}
+            className="hidden md:flex items-center justify-center th-icon-btn shrink-0"
+            style={{ color: 'var(--th-sidebar-muted)' }}
+            aria-label={collapsed ? 'Seitenleiste erweitern' : 'Seitenleiste einklappen'}
+          >
+            {collapsed
+              ? <ChevronRight size={16} aria-hidden="true" />
+              : <ChevronLeft  size={16} aria-hidden="true" />
+            }
           </button>
         )}
       </div>
 
       {/* ── Navigation ──────────────────────────────────────────── */}
       <nav
-        className="flex-1 px-3 py-4 overflow-y-auto scrollbar-thin"
+        className="flex-1 px-2 py-3 overflow-y-auto scrollbar-thin"
         aria-label="Hauptnavigation"
       >
         <ul className="space-y-0.5" role="list">
@@ -115,24 +147,20 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
                 end={end}
                 onClick={onClose}
                 className={({ isActive }) =>
-                  `th-nav-item ${isActive ? 'th-nav-item-active' : ''}`
+                  `th-nav-item${isActive ? ' th-nav-item-active' : ''}${collapsed ? ' th-nav-item-collapsed' : ''}`
                 }
-                aria-current={undefined}
+                aria-label={collapsed ? label : undefined}
+                title={collapsed ? label : undefined}
               >
                 {({ isActive }) => (
                   <>
                     <Icon
                       size={18}
                       aria-hidden="true"
-                      style={{
-                        opacity: isActive ? 1 : 0.75,
-                        flexShrink: 0,
-                      }}
+                      style={{ opacity: isActive ? 1 : 0.75, flexShrink: 0 }}
                     />
-                    <span>{label}</span>
-                    {isActive && (
-                      <span className="sr-only">(aktuelle Seite)</span>
-                    )}
+                    {!collapsed && <span>{label}</span>}
+                    {isActive && <span className="sr-only">(aktuelle Seite)</span>}
                   </>
                 )}
               </NavLink>
@@ -145,13 +173,15 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
                 to="/admin"
                 onClick={onClose}
                 className={({ isActive }) =>
-                  `th-nav-item ${isActive ? 'th-nav-item-active' : ''}`
+                  `th-nav-item${isActive ? ' th-nav-item-active' : ''}${collapsed ? ' th-nav-item-collapsed' : ''}`
                 }
+                aria-label={collapsed ? 'Admin-Konsole' : undefined}
+                title={collapsed ? 'Admin-Konsole' : undefined}
               >
                 {({ isActive }) => (
                   <>
                     <ShieldCheck size={18} aria-hidden="true" style={{ opacity: isActive ? 1 : 0.75, flexShrink: 0 }} />
-                    <span>Admin-Konsole</span>
+                    {!collapsed && <span>Admin-Konsole</span>}
                     {isActive && <span className="sr-only">(aktuelle Seite)</span>}
                   </>
                 )}
@@ -163,46 +193,54 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 
       {/* ── User profile + Logout ───────────────────────────────── */}
       <div
-        className="px-3 py-4"
+        className="px-2 py-3 shrink-0"
         style={{ borderTop: '1px solid var(--th-sidebar-border, rgba(255,255,255,0.08))' }}
       >
         {user && (
-          <div
-            className="flex items-center gap-3 px-2 py-2 mb-2 rounded-xl"
-            style={{ background: 'rgba(255,255,255,0.06)' }}
-          >
-            <UserAvatar name={displayName} />
-            <div className="flex-1 min-w-0">
-              <div
-                className="text-sm font-semibold truncate leading-tight"
-                style={{ color: 'var(--th-sidebar-text)' }}
-              >
-                {displayName}
-              </div>
-              {(user.studyType || user.studyProgram) && (
-                <div
-                  className="text-xs truncate mt-0.5 leading-tight"
-                  style={{ color: 'var(--th-sidebar-muted)' }}
-                >
-                  {[
-                    STUDY_TYPE_LABEL[user.studyType ?? ''] ?? user.studyType,
-                    user.studyProgram,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </div>
-              )}
+          collapsed ? (
+            <div className="flex justify-center mb-2">
+              <UserAvatar name={displayName} />
             </div>
-          </div>
+          ) : (
+            <div
+              className="flex items-center gap-3 px-2 py-2 mb-2 rounded-xl"
+              style={{ background: 'rgba(255,255,255,0.06)' }}
+            >
+              <UserAvatar name={displayName} />
+              <div className="flex-1 min-w-0">
+                <div
+                  className="text-sm font-semibold truncate leading-tight"
+                  style={{ color: 'var(--th-sidebar-text)' }}
+                >
+                  {displayName}
+                </div>
+                {(user.studyType || user.studyProgram) && (
+                  <div
+                    className="text-xs truncate mt-0.5 leading-tight"
+                    style={{ color: 'var(--th-sidebar-muted)' }}
+                  >
+                    {[
+                      STUDY_TYPE_LABEL[user.studyType ?? ''] ?? user.studyType,
+                      user.studyProgram,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </div>
+                )}
+              </div>
+            </div>
+          )
         )}
 
         <button
           onClick={handleLogout}
-          className="th-nav-item w-full text-sm"
+          className={`th-nav-item w-full text-sm${collapsed ? ' th-nav-item-collapsed' : ''}`}
           style={{ color: 'var(--th-sidebar-muted)' }}
+          aria-label={collapsed ? 'Abmelden' : undefined}
+          title={collapsed ? 'Abmelden' : undefined}
         >
           <LogOut size={16} aria-hidden="true" style={{ flexShrink: 0 }} />
-          <span>Abmelden</span>
+          {!collapsed && <span>Abmelden</span>}
         </button>
       </div>
     </div>
@@ -211,6 +249,9 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 
 export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
+
+  const sidebarW = collapsed ? SIDEBAR_MINI : SIDEBAR_FULL
 
   return (
     <>
@@ -220,16 +261,26 @@ export default function Layout() {
       </a>
 
       <div className="flex h-screen overflow-hidden th-bg">
-        {/* ── Desktop sidebar ─────────────────────────────────── */}
+        {/* ── Spacer: pushes content right of the fixed floating sidebar ── */}
+        <div
+          className="hidden md:block flex-shrink-0"
+          style={{
+            width: sidebarW + 24, // 12px gap on each side
+            transition: 'width 280ms cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+          aria-hidden="true"
+        />
+
+        {/* ── Desktop floating sidebar ─────────────────────────────── */}
         <aside
-          className="th-sidebar hidden md:flex flex-col flex-shrink-0"
-          style={{ width: 'var(--sidebar-w)' }}
+          className="th-sidebar th-sidebar-float hidden md:flex flex-col"
+          style={{ width: sidebarW }}
           aria-label="Seitenleiste"
         >
-          <SidebarContent />
+          <SidebarContent collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />
         </aside>
 
-        {/* ── Mobile overlay ──────────────────────────────────── */}
+        {/* ── Mobile overlay ───────────────────────────────────────── */}
         {mobileOpen && (
           <div
             className="fixed inset-0 z-[200] md:hidden"
@@ -239,12 +290,12 @@ export default function Layout() {
           />
         )}
 
-        {/* ── Mobile sidebar ──────────────────────────────────── */}
+        {/* ── Mobile sidebar ───────────────────────────────────────── */}
         <aside
           className={`th-sidebar fixed inset-y-0 left-0 z-[300] flex flex-col flex-shrink-0 md:hidden
             transform transition-transform duration-250 ease-in-out`}
           style={{
-            width: 'var(--sidebar-w)',
+            width: SIDEBAR_FULL,
             transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
           }}
           aria-label="Mobile Navigation"
@@ -254,7 +305,7 @@ export default function Layout() {
           <SidebarContent onClose={() => setMobileOpen(false)} />
         </aside>
 
-        {/* ── Main content area ────────────────────────────────── */}
+        {/* ── Main content area ─────────────────────────────────────── */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Mobile top bar */}
           <header
@@ -270,7 +321,6 @@ export default function Layout() {
               className="th-icon-btn"
               aria-label="Navigationsmenü öffnen"
               aria-expanded={mobileOpen}
-              aria-controls="mobile-sidebar"
               style={{ color: 'var(--th-sidebar-text)', opacity: 0.85 }}
             >
               <Menu size={22} aria-hidden="true" />
