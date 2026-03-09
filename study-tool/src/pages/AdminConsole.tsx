@@ -583,7 +583,7 @@ export default function AdminConsolePage() {
   const totalGb = storage ? (storage.totalBytes / 1_073_741_824).toFixed(2) : '—'
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold th-text">Admin-Konsole</h1>

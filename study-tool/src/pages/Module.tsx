@@ -247,7 +247,7 @@ function ModuleDetail({
                   const exam = exams[idx]
                   const label = idx === 0 ? '1. Prüfungsversuch' : '2. Prüfungsversuch'
                   return (
-                    <div key={idx} className="grid grid-cols-[180px_1fr_1fr_auto] items-center gap-3 py-3 border-b border-[var(--th-border)] last:border-0">
+                    <div key={idx} className="grid grid-cols-1 sm:grid-cols-[180px_1fr_1fr_auto] items-center gap-3 py-3 border-b border-[var(--th-border)] last:border-0">
                       <span className="text-sm font-medium th-text-2">{label}</span>
                       <div>
                         <label className="block text-xs th-text-3 mb-0.5">Datum</label>
@@ -425,8 +425,8 @@ function ModuleDetail({
                             <span className="th-text-2">{format(parseISO(exam.date), 'dd.MM.yy')}</span>
                           )}
                           {exam.grade && <span className="font-medium">{exam.grade}</span>}
-                          {exam.passed === true && <span className="text-green-600 font-medium">✓</span>}
-                          {exam.passed === false && <span className="text-red-600 font-medium">✗</span>}
+                          {exam.passed === true && <Check size={14} style={{ color: '#22c55e' }} />}
+                          {exam.passed === false && <X size={14} style={{ color: '#ef4444' }} />}
                         </div>
                       </div>
                     )
@@ -778,7 +778,7 @@ export default function ModulePage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold th-text">Meine Module</h1>

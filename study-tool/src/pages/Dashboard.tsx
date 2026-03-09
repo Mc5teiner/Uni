@@ -147,7 +147,7 @@ export default function Dashboard() {
   })()
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       {/* Header */}
       <div className="mb-6">
         <div className="text-sm th-text-3 mb-1">{format(new Date(), 'EEEE, dd. MMMM yyyy', { locale: de })}</div>
@@ -184,7 +184,7 @@ export default function Dashboard() {
       )}
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
         <StatCard icon={BookOpen}    label="Aktive Module"         value={activeModules.length}
           sub={`${data.modules.length} gesamt`} color="blue" to="/module" />
         <StatCard icon={BrainCircuit} label="Karten fällig"        value={dueCards.length}

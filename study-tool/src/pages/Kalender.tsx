@@ -7,7 +7,7 @@ import {
   isToday
 } from 'date-fns'
 import { de } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Plus, X, Check, Clock, Upload, ExternalLink, Timer, Pause, Play, RotateCcw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, X, Check, Clock, Upload, ExternalLink, Timer, Pause, Play, RotateCcw, BrainCircuit as BrainIcon, Coffee, Moon } from 'lucide-react'
 
 const EVENT_TYPE_LABELS: Record<EventType, string> = {
   pruefung: 'Prüfung',
@@ -94,7 +94,7 @@ function EventForm({ initial, defaultDate, onSave, onCancel }: {
               </select>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-sm font-medium th-text-2 mb-1">Datum *</label>
               <input type="date" className="th-input"
@@ -248,7 +248,7 @@ function PomodoroTimer({ onComplete }: { onComplete: (minutes: number) => void }
           }
           // Browser notification
           if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-            new Notification(mode === 'focus' ? '✅ Fokus-Session abgeschlossen!' : '▶️ Weiter lernen!', {
+            new Notification(mode === 'focus' ? 'Fokus-Session abgeschlossen!' : 'Weiter lernen!', {
               body: mode === 'focus' ? 'Zeit für eine Pause.' : 'Bereit für die nächste Session?',
             })
           }
@@ -282,7 +282,7 @@ function PomodoroTimer({ onComplete }: { onComplete: (minutes: number) => void }
     return (
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-40 th-card flex items-center gap-2 px-4 py-3 shadow-lg hover:shadow-xl transition-shadow text-sm font-medium th-text"
+        className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-40 th-card flex items-center gap-2 px-4 py-3 shadow-lg hover:shadow-xl transition-shadow text-sm font-medium th-text"
         style={{ borderRadius: 'var(--th-radius-lg)' }}
         title="Pomodoro-Timer öffnen"
       >
@@ -295,7 +295,7 @@ function PomodoroTimer({ onComplete }: { onComplete: (minutes: number) => void }
 
   return (
     <div
-      className="fixed bottom-6 right-6 z-40 th-card shadow-2xl p-5 w-72"
+      className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-40 th-card shadow-2xl p-4 md:p-5 w-[min(288px,calc(100vw-2rem))]"
       style={{ borderRadius: 'var(--th-radius-lg)' }}
     >
       {/* Header */}
@@ -314,17 +314,21 @@ function PomodoroTimer({ onComplete }: { onComplete: (minutes: number) => void }
 
       {/* Mode selector */}
       <div className="flex gap-1 mb-4 p-1 rounded-lg" style={{ background: 'var(--th-card-secondary)' }}>
-        {(Object.keys(MODE_LABELS) as PomodoroMode[]).map(m => (
+        {([
+          { m: 'focus' as PomodoroMode, Icon: BrainIcon },
+          { m: 'short' as PomodoroMode, Icon: Coffee },
+          { m: 'long'  as PomodoroMode, Icon: Moon },
+        ]).map(({ m, Icon }) => (
           <button
             key={m}
             onClick={() => switchMode(m)}
-            className="flex-1 py-1 text-xs font-medium rounded-md transition-colors"
+            className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-medium rounded-md transition-colors"
             style={mode === m
               ? { background: modeColor, color: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }
               : { color: 'var(--th-text-2)' }
             }
           >
-            {m === 'focus' ? '🧠' : m === 'short' ? '☕' : '🛋️'} {MODE_LABELS[m]}
+            <Icon size={11} /> {MODE_LABELS[m]}
           </button>
         ))}
       </div>
@@ -717,7 +721,7 @@ export default function KalenderPage() {
     .slice(0, 10)
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold th-text">Kalender & Studienplan</h1>
@@ -760,21 +764,23 @@ export default function KalenderPage() {
         {/* Calendar */}
         <div className="xl:col-span-2 th-card shadow-sm overflow-hidden">
           {/* Month nav */}
-          <div className="flex items-center justify-between px-6 py-4 border-b bg-[var(--th-bg)]">
-            <button onClick={() => setCurrentMonth(m => subMonths(m, 1))} className="p-2 rounded hover:bg-slate-200"><ChevronLeft size={18} /></button>
+          <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b bg-[var(--th-bg)]">
+            <button onClick={() => setCurrentMonth(m => subMonths(m, 1))} className="p-2 rounded hover:bg-[var(--th-card-hover)]"><ChevronLeft size={18} /></button>
             <h2 className="font-semibold th-text">{format(currentMonth, 'MMMM yyyy', { locale: de })}</h2>
-            <button onClick={() => setCurrentMonth(m => addMonths(m, 1))} className="p-2 rounded hover:bg-slate-200"><ChevronRight size={18} /></button>
+            <button onClick={() => setCurrentMonth(m => addMonths(m, 1))} className="p-2 rounded hover:bg-[var(--th-card-hover)]"><ChevronRight size={18} /></button>
           </div>
 
+          {/* Calendar scroll wrapper for mobile */}
+          <div className="overflow-x-auto">
           {/* Weekday headers */}
-          <div className="grid grid-cols-7 border-b">
+          <div className="grid grid-cols-7 border-b min-w-[320px]">
             {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(d => (
               <div key={d} className="py-2 text-center text-xs font-semibold th-text-3">{d}</div>
             ))}
           </div>
 
           {/* Days grid */}
-          <div className="grid grid-cols-7">
+          <div className="grid grid-cols-7 min-w-[320px]">
             {calDays.map((day, i) => {
               const events = eventsForDay(day)
               const isSelected = isSameDay(day, selectedDate)
@@ -808,6 +814,7 @@ export default function KalenderPage() {
               )
             })}
           </div>
+          </div>{/* end overflow-x-auto */}
         </div>
 
         {/* Sidebar: selected day + upcoming */}

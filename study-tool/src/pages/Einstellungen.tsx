@@ -469,7 +469,7 @@ export default function EinstellungenPage() {
         <h2 className="font-semibold th-text mb-4 flex items-center gap-2"><Bell size={16} /> Benachrichtigungen</h2>
         <p className="text-sm th-text-2 mb-4">
           {typeof Notification !== 'undefined' && Notification.permission === 'granted'
-            ? <span style={{ color: 'var(--th-success)' }}>✓ Benachrichtigungen aktiviert</span>
+            ? <span style={{ color: 'var(--th-success)', display: 'flex', alignItems: 'center', gap: '4px' }}><Check size={14} /> Benachrichtigungen aktiviert</span>
             : 'Aktiviere Browser-Benachrichtigungen für Lernreminder und Terminhinweise.'}
         </p>
         <button onClick={handleNotifications} className="th-btn th-btn-secondary px-4 py-2 text-sm">
