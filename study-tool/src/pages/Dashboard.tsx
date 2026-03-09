@@ -1,9 +1,19 @@
 import { useApp } from '../context/AppContext'
+import { useAuth } from '../context/AuthContext'
 import { getDueCards } from '../utils/spaceRepetition'
 import { format, parseISO, isToday, isTomorrow, differenceInDays, startOfWeek, eachDayOfInterval, endOfWeek } from 'date-fns'
 import { de } from 'date-fns/locale'
 import { BrainCircuit, FileText, BookOpen, Calendar, Clock, TrendingUp, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
+
+function getGreeting(name: string): string {
+  const h = new Date().getHours()
+  const salut = h >= 5 && h < 12 ? 'Guten Morgen'
+    : h >= 12 && h < 18 ? 'Guten Tag'
+    : h >= 18 && h < 23 ? 'Guten Abend'
+    : 'Gute Nacht'
+  return `${salut}, ${name}!`
+}
 
 function StatCard({ icon: Icon, label, value, sub, color = 'blue', to }: {
   icon: React.ComponentType<{ size?: number; className?: string }>
@@ -84,6 +94,7 @@ function WeekChart({ sessions }: { sessions: { date: string; durationMinutes: nu
 
 export default function Dashboard() {
   const { data } = useApp()
+  const { user }  = useAuth()
   const today = format(new Date(), 'yyyy-MM-dd')
 
   const dueCards = getDueCards(data.flashcards)
@@ -123,7 +134,10 @@ export default function Dashboard() {
       {/* Header */}
       <div className="mb-6">
         <div className="text-sm text-slate-400 mb-1">{format(new Date(), 'EEEE, dd. MMMM yyyy', { locale: de })}</div>
-        <h1 className="text-2xl font-bold text-slate-800">Guten Tag! 📚</h1>
+        <h1 className="text-2xl font-bold text-slate-800">
+          {user?.name ? getGreeting(user.name) : 'Willkommen!'}{' '}
+          {user?.studyProgram && <span className="text-lg font-normal text-slate-500">· {user.studyProgram}</span>}
+        </h1>
         <p className="text-slate-500 mt-1">
           {dueCards.length > 0
             ? `Du hast ${dueCards.length} Karteikarte${dueCards.length !== 1 ? 'n' : ''} zu wiederholen.`
