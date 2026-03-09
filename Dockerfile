@@ -23,7 +23,7 @@ RUN npm run build
 FROM node:22-slim AS production
 
 # Security: run as non-root user
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN groupadd --system appgroup && useradd --system --gid appgroup appuser
 
 WORKDIR /app
 
