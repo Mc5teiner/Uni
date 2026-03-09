@@ -3,123 +3,212 @@ import { useAuth } from '../context/AuthContext'
 import { getDueCards } from '../utils/spaceRepetition'
 import { format, parseISO, isToday, isTomorrow, differenceInDays, startOfWeek, eachDayOfInterval, endOfWeek } from 'date-fns'
 import { de } from 'date-fns/locale'
-import { BrainCircuit, FileText, BookOpen, Calendar, Clock, TrendingUp, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { BrainCircuit, FileText, BookOpen, Calendar, Clock, TrendingUp, AlertCircle, CheckCircle2, ArrowRight, Flame } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 function getGreeting(name: string): string {
   const h = new Date().getHours()
-  const salut = h >= 5 && h < 12 ? 'Guten Morgen'
-    : h >= 12 && h < 18 ? 'Guten Tag'
-    : h >= 18 && h < 23 ? 'Guten Abend'
-    : 'Gute Nacht'
+  const salut =
+    h >= 5  && h < 12 ? 'Guten Morgen' :
+    h >= 12 && h < 18 ? 'Guten Tag'    :
+    h >= 18 && h < 23 ? 'Guten Abend'  : 'Gute Nacht'
   return `${salut}, ${name}!`
 }
 
-const ICON_COLORS: Record<string, { bg: string; text: string; className: string }> = {
-  blue:   { bg: 'rgba(59,130,246,0.12)',  text: '#3b82f6', className: 'stat-icon-blue'   },
-  green:  { bg: 'rgba(16,185,129,0.12)',  text: '#10b981', className: 'stat-icon-green'  },
-  red:    { bg: 'rgba(239,68,68,0.12)',   text: '#ef4444', className: 'stat-icon-red'    },
-  purple: { bg: 'rgba(139,92,246,0.12)',  text: '#8b5cf6', className: 'stat-icon-purple' },
-  orange: { bg: 'rgba(249,115,22,0.12)',  text: '#f97316', className: 'stat-icon-orange' },
-}
+const ICON_COLORS = {
+  blue:   { bg: 'rgba(59,130,246,0.12)',  text: '#3B82F6' },
+  green:  { bg: 'rgba(16,185,129,0.12)', text: '#10B981' },
+  red:    { bg: 'rgba(239,68,68,0.12)',  text: '#EF4444' },
+  purple: { bg: 'rgba(139,92,246,0.12)', text: '#8B5CF6' },
+  orange: { bg: 'rgba(249,115,22,0.12)', text: '#F97316' },
+} as const
+type IconColor = keyof typeof ICON_COLORS
 
-function StatCard({ icon: Icon, label, value, sub, color = 'blue', to }: {
-  icon: React.ComponentType<{ size?: number; className?: string }>
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  sub,
+  color = 'blue',
+  to,
+}: {
+  icon: React.ComponentType<{ size?: number; 'aria-hidden'?: boolean | 'true' | 'false' }>
   label: string
   value: string | number
   sub?: string
-  color?: string
+  color?: IconColor
   to?: string
 }) {
-  const c = ICON_COLORS[color] ?? ICON_COLORS.blue
+  const c = ICON_COLORS[color]
   const content = (
-    <div className="th-card p-5 hover:shadow-lg transition-shadow cursor-default">
-      <div className="flex items-center gap-3 mb-3">
+    <div
+      className="th-card p-5 flex flex-col gap-4"
+      style={to ? { cursor: 'pointer' } : undefined}
+    >
+      <div className="flex items-center justify-between">
         <div
-          className={`p-2.5 rounded-xl ${c.className}`}
+          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
           style={{ background: c.bg, color: c.text }}
         >
-          <Icon size={20} />
+          <Icon size={20} aria-hidden="true" />
         </div>
-        <span className="text-sm font-medium th-text-2">{label}</span>
+        {to && (
+          <ArrowRight size={14} aria-hidden="true" style={{ color: 'var(--th-text-3)' }} />
+        )}
       </div>
-      <div className="text-3xl font-bold th-text">{value}</div>
-      {sub && <div className="text-xs th-text-3 mt-1">{sub}</div>}
+      <div>
+        <div
+          className="text-3xl font-bold leading-none mb-1"
+          style={{ color: 'var(--th-text)', letterSpacing: '-0.04em' }}
+        >
+          {value}
+        </div>
+        <div className="text-sm font-medium" style={{ color: 'var(--th-text-2)' }}>{label}</div>
+        {sub && (
+          <div className="text-xs mt-1" style={{ color: 'var(--th-text-3)' }}>{sub}</div>
+        )}
+      </div>
     </div>
   )
-  return to ? <Link to={to}>{content}</Link> : content
+
+  if (to) {
+    return (
+      <Link
+        to={to}
+        aria-label={`${label}: ${value}${sub ? ` (${sub})` : ''}`}
+        className="th-card-interactive block rounded-[var(--th-radius)] no-underline"
+        style={{ transition: 'box-shadow 150ms ease, transform 150ms ease' }}
+        onMouseEnter={e => {
+          const el = e.currentTarget
+          el.style.boxShadow = 'var(--th-card-shadow-hover)'
+          el.style.transform = 'translateY(-2px)'
+        }}
+        onMouseLeave={e => {
+          const el = e.currentTarget
+          el.style.boxShadow = ''
+          el.style.transform = ''
+        }}
+      >
+        {content}
+      </Link>
+    )
+  }
+  return content
 }
 
-function UpcomingEvent({ event, moduleName }: { event: { title: string; date: string; type: string }; moduleName?: string }) {
-  const date = parseISO(event.date)
-  const label = isToday(date) ? 'Heute' : isTomorrow(date) ? 'Morgen' : `in ${differenceInDays(date, new Date())}d`
-  const isUrgent = differenceInDays(date, new Date()) <= 3
+function EventRow({
+  event,
+  moduleName,
+}: {
+  event: { title: string; date: string; type: string; time?: string }
+  moduleName?: string
+}) {
+  const date    = parseISO(event.date)
+  const daysOut = differenceInDays(date, new Date())
+  const label   = isToday(date) ? 'Heute' : isTomorrow(date) ? 'Morgen' : `in ${daysOut}d`
+  const urgent  = daysOut <= 3
 
   return (
-    <div className="flex items-center gap-3 py-2.5 last:border-0" style={{ borderBottom: '1px solid var(--th-border)' }}>
-      <div
-        className="w-1.5 h-1.5 rounded-full shrink-0"
-        style={{ background: isUrgent ? 'var(--th-danger)' : 'var(--th-accent)' }}
+    <li
+      className="flex items-center gap-3 py-3"
+      style={{ borderBottom: '1px solid var(--th-border)' }}
+    >
+      <span
+        className="w-2 h-2 rounded-full shrink-0"
+        aria-hidden="true"
+        style={{ background: urgent ? 'var(--th-danger)' : 'var(--th-accent)' }}
       />
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium th-text truncate">{event.title}</div>
-        {moduleName && <div className="text-xs th-text-3">{moduleName}</div>}
+        <div className="text-sm font-medium truncate" style={{ color: 'var(--th-text)' }}>
+          {event.title}
+        </div>
+        {moduleName && (
+          <div className="text-xs mt-0.5 truncate" style={{ color: 'var(--th-text-3)' }}>
+            {moduleName}
+          </div>
+        )}
       </div>
       <span
-        className="text-xs font-medium shrink-0"
-        style={{ color: isUrgent ? 'var(--th-danger)' : 'var(--th-text-3)' }}
+        className="text-xs font-semibold shrink-0 px-2 py-0.5 rounded-full"
+        style={{
+          background: urgent ? 'var(--th-danger-soft)' : 'var(--th-bg-secondary)',
+          color:      urgent ? 'var(--th-danger)'      : 'var(--th-text-3)',
+        }}
       >
         {label}
       </span>
-    </div>
+    </li>
   )
 }
 
 function WeekChart({ sessions }: { sessions: { date: string; durationMinutes: number }[] }) {
   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 })
-  const weekEnd   = endOfWeek(new Date(), { weekStartsOn: 1 })
+  const weekEnd   = endOfWeek(new Date(),   { weekStartsOn: 1 })
   const days      = eachDayOfInterval({ start: weekStart, end: weekEnd })
 
   const dayData = days.map(day => {
-    const dayStr = format(day, 'yyyy-MM-dd')
-    const total  = sessions.filter(s => s.date === dayStr).reduce((sum, s) => sum + s.durationMinutes, 0)
+    const str   = format(day, 'yyyy-MM-dd')
+    const total = sessions.filter(s => s.date === str).reduce((sum, s) => sum + s.durationMinutes, 0)
     return { day, total }
   })
 
   const max = Math.max(...dayData.map(d => d.total), 60)
 
   return (
-    <div className="flex items-end gap-2 h-24">
-      {dayData.map(({ day, total }) => (
-        <div key={day.toISOString()} className="flex-1 flex flex-col items-center gap-1">
+    <div
+      className="flex items-end gap-2"
+      style={{ height: '6rem' }}
+      role="img"
+      aria-label="Balkendiagramm der Lernaktivität dieser Woche"
+    >
+      {dayData.map(({ day, total }) => {
+        const today     = isToday(day)
+        const heightPct = total > 0 ? Math.max((total / max) * 100, 6) : 0
+        return (
           <div
-            className="w-full rounded-sm relative flex-1 flex items-end"
-            style={{ background: 'var(--th-card-secondary, #f1f5f9)' }}
+            key={day.toISOString()}
+            className="flex-1 flex flex-col items-center gap-1.5"
+            title={`${format(day, 'EEEE', { locale: de })}: ${total} min`}
           >
             <div
-              className="w-full rounded-sm transition-all"
-              style={{
-                height: `${total > 0 ? Math.max((total / max) * 100, 8) : 0}%`,
-                background: isToday(day) ? 'var(--th-accent)' : 'color-mix(in srgb, var(--th-accent) 40%, transparent)',
-              }}
-            />
+              className="w-full rounded-lg relative flex-1 flex items-end overflow-hidden"
+              style={{ background: 'var(--th-bg-secondary)' }}
+              aria-hidden="true"
+            >
+              <div
+                className="w-full rounded-lg"
+                style={{
+                  height: `${heightPct}%`,
+                  background: today
+                    ? 'var(--th-accent)'
+                    : 'color-mix(in srgb, var(--th-accent) 35%, transparent)',
+                  transition: 'height 600ms cubic-bezier(0.4,0,0.2,1)',
+                }}
+              />
+            </div>
+            <span
+              className="text-[10px] font-medium"
+              style={{ color: today ? 'var(--th-accent)' : 'var(--th-text-3)' }}
+            >
+              {format(day, 'EEE', { locale: de })}
+            </span>
           </div>
-          <span className="text-[10px] th-text-3">{format(day, 'EEE', { locale: de })}</span>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
 
 export default function Dashboard() {
-  const { data } = useApp()
-  const { user } = useAuth()
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const { data }  = useApp()
+  const { user }  = useAuth()
+  const today     = format(new Date(), 'yyyy-MM-dd')
+  const weekAgo   = format(new Date(Date.now() - 7 * 86400000), 'yyyy-MM-dd')
 
-  const dueCards       = getDueCards(data.flashcards)
-  const activeModules  = data.modules.filter(m => m.status === 'aktiv')
-  const todayEvents    = data.events.filter(e => e.date === today)
-  const upcomingExams  = data.events
+  const dueCards          = getDueCards(data.flashcards)
+  const activeModules     = data.modules.filter(m => m.status === 'aktiv')
+  const todayEvents       = data.events.filter(e => e.date === today)
+  const upcomingExams     = data.events
     .filter(e => e.type === 'pruefung' && parseISO(e.date) >= new Date())
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 5)
@@ -128,98 +217,160 @@ export default function Dashboard() {
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 6)
 
-  const weekAgo      = format(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd')
-  const weekSessions = data.sessions.filter(s => s.date >= weekAgo)
-  const weekMinutes  = weekSessions.reduce((sum, s) => sum + s.durationMinutes, 0)
+  const weekSessions   = data.sessions.filter(s => s.date >= weekAgo)
+  const weekMinutes    = weekSessions.reduce((sum, s) => sum + s.durationMinutes, 0)
   const docsInProgress = data.documents.filter(d => d.currentPage > 1)
 
   const studyStreak = (() => {
     let streak = 0
-    let current = new Date()
+    let cur    = new Date()
     while (true) {
-      const dateStr = format(current, 'yyyy-MM-dd')
-      if (data.sessions.some(s => s.date === dateStr)) {
+      const str = format(cur, 'yyyy-MM-dd')
+      if (data.sessions.some(s => s.date === str)) {
         streak++
-        current = new Date(current.getTime() - 86400000)
+        cur = new Date(cur.getTime() - 86400000)
       } else break
     }
     return streak
   })()
 
   return (
-    <div className="p-4 md:p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="text-sm th-text-3 mb-1">{format(new Date(), 'EEEE, dd. MMMM yyyy', { locale: de })}</div>
-        <h1 className="text-2xl font-bold th-text">
-          {user?.name ? getGreeting(user.name) : 'Willkommen!'}{' '}
-          {user?.studyProgram && <span className="text-lg font-normal th-text-2">· {user.studyProgram}</span>}
+    <div className="p-5 md:p-8 max-w-screen-xl mx-auto">
+
+      {/* ── Page header ─────────────────────────────────────────── */}
+      <header className="mb-8">
+        <p className="text-sm mb-1" style={{ color: 'var(--th-text-3)' }}>
+          {format(new Date(), 'EEEE, dd. MMMM yyyy', { locale: de })}
+        </p>
+        <h1 className="th-page-title">
+          {user?.name ? getGreeting(user.name) : 'Willkommen!'}
+          {user?.studyProgram && (
+            <span
+              className="ml-2 text-lg font-normal"
+              style={{ color: 'var(--th-text-2)', letterSpacing: '-0.01em' }}
+            >
+              · {user.studyProgram}
+            </span>
+          )}
         </h1>
-        <p className="th-text-2 mt-1 text-sm">
+        <p className="mt-2 text-sm" style={{ color: 'var(--th-text-2)' }}>
           {dueCards.length > 0
             ? `Du hast ${dueCards.length} Karteikarte${dueCards.length !== 1 ? 'n' : ''} zu wiederholen.`
-            : 'Alle Karteikarten sind aktuell. Gut gemacht!'}
+            : 'Alle Karteikarten sind auf dem neuesten Stand. Gut gemacht!'}
         </p>
-      </div>
+      </header>
 
-      {/* Today's events */}
+      {/* ── Today's events banner ───────────────────────────────── */}
       {todayEvents.length > 0 && (
-        <div
-          className="rounded-xl p-4 mb-6"
-          style={{ background: 'var(--th-accent-soft)', border: '1px solid color-mix(in srgb, var(--th-accent) 25%, transparent)' }}
+        <section
+          aria-label="Heutige Termine"
+          className="rounded-2xl p-4 mb-6"
+          style={{
+            background: 'var(--th-accent-soft)',
+            border: '1px solid color-mix(in srgb, var(--th-accent) 22%, transparent)',
+          }}
         >
-          <div className="flex items-center gap-2 font-semibold mb-3" style={{ color: 'var(--th-accent)' }}>
-            <Calendar size={16} /> Heute
+          <div
+            className="flex items-center gap-2 text-sm font-semibold mb-3"
+            style={{ color: 'var(--th-accent)' }}
+          >
+            <Calendar size={15} aria-hidden="true" />
+            Heute
           </div>
-          <div className="space-y-2">
+          <ul className="space-y-2" role="list">
             {todayEvents.map(e => (
-              <div key={e.id} className="flex items-center gap-2 text-sm" style={{ color: 'var(--th-accent-soft-text)' }}>
-                <CheckCircle2 size={14} />
+              <li key={e.id} className="flex items-center gap-2 text-sm" style={{ color: 'var(--th-accent-soft-text)' }}>
+                <CheckCircle2 size={14} aria-hidden="true" />
                 <span>{e.title}</span>
-                {e.time && <span style={{ opacity: 0.7 }}>{e.time}</span>}
-              </div>
+                {e.time && (
+                  <span className="opacity-60 font-mono text-xs">{e.time}</span>
+                )}
+              </li>
             ))}
-          </div>
-        </div>
+          </ul>
+        </section>
       )}
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
-        <StatCard icon={BookOpen}    label="Aktive Module"         value={activeModules.length}
-          sub={`${data.modules.length} gesamt`} color="blue" to="/module" />
-        <StatCard icon={BrainCircuit} label="Karten fällig"        value={dueCards.length}
-          sub={`${data.flashcards.length} Karten gesamt`} color={dueCards.length > 0 ? 'red' : 'green'} to="/karteikarten" />
-        <StatCard icon={Clock}        label="Minuten diese Woche"  value={weekMinutes}
-          sub={`${weekSessions.length} Sessions`} color="purple" to="/kalender" />
-        <StatCard icon={TrendingUp}   label="Lerntage in Folge"    value={studyStreak}
-          sub={studyStreak > 0 ? 'Weiter so!' : 'Starte heute!'} color="green" />
-      </div>
+      {/* ── Stat cards ──────────────────────────────────────────── */}
+      <section aria-label="Lernstatistiken" className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-8">
+        <StatCard
+          icon={BookOpen}
+          label="Aktive Module"
+          value={activeModules.length}
+          sub={`${data.modules.length} gesamt`}
+          color="blue"
+          to="/module"
+        />
+        <StatCard
+          icon={BrainCircuit}
+          label="Karten fällig"
+          value={dueCards.length}
+          sub={`${data.flashcards.length} Karten gesamt`}
+          color={dueCards.length > 0 ? 'red' : 'green'}
+          to="/karteikarten"
+        />
+        <StatCard
+          icon={Clock}
+          label="Minuten diese Woche"
+          value={weekMinutes}
+          sub={`${weekSessions.length} Sessions`}
+          color="purple"
+          to="/kalender"
+        />
+        <StatCard
+          icon={studyStreak > 0 ? Flame : TrendingUp}
+          label="Lerntage in Folge"
+          value={studyStreak}
+          sub={studyStreak > 0 ? 'Weiter so!' : 'Starte heute!'}
+          color={studyStreak >= 3 ? 'orange' : 'green'}
+        />
+      </section>
 
+      {/* ── Main grid ───────────────────────────────────────────── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Left column */}
+
+        {/* Left column — 2/3 width */}
         <div className="xl:col-span-2 space-y-6">
+
           {/* Study activity chart */}
-          <div className="th-card p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold th-section-title">Lernaktivität diese Woche</h2>
-              <span className="text-sm th-text-3">{weekMinutes} min</span>
+          <section aria-labelledby="chart-heading" className="th-card p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 id="chart-heading" className="th-section-title">
+                Lernaktivität diese Woche
+              </h2>
+              <span className="text-sm font-semibold" style={{ color: 'var(--th-text-2)' }}>
+                {weekMinutes} min
+              </span>
             </div>
             {weekSessions.length > 0 ? (
               <WeekChart sessions={data.sessions} />
             ) : (
-              <div className="h-24 flex items-center justify-center th-text-3 text-sm text-center">
-                Noch keine Lernsessions diese Woche.<br />Erfasse deine erste im Kalender!
+              <div
+                className="flex flex-col items-center justify-center text-center py-8 rounded-xl"
+                style={{ background: 'var(--th-bg-secondary)', minHeight: '6rem' }}
+              >
+                <Calendar size={28} aria-hidden="true" className="mb-2" style={{ color: 'var(--th-text-3)' }} />
+                <p className="text-sm" style={{ color: 'var(--th-text-3)' }}>
+                  Noch keine Lernsessions diese Woche.
+                </p>
+                <Link
+                  to="/kalender"
+                  className="mt-3 text-xs font-semibold underline underline-offset-2"
+                  style={{ color: 'var(--th-accent)' }}
+                >
+                  Erste Session erfassen
+                </Link>
               </div>
             )}
-          </div>
+          </section>
 
           {/* Active modules progress */}
           {activeModules.length > 0 && (
-            <div className="th-card p-5">
-              <h2 className="font-semibold th-section-title mb-4">Modulfortschritt</h2>
-              <div className="space-y-4">
+            <section aria-labelledby="modules-heading" className="th-card p-6">
+              <h2 id="modules-heading" className="th-section-title mb-5">Modulfortschritt</h2>
+              <ul className="space-y-4" role="list">
                 {activeModules.map(m => {
-                  const moduleDocs = data.documents.filter(d => d.moduleId === m.id)
+                  const moduleDocs  = data.documents.filter(d => d.moduleId === m.id)
                   const docProgress = moduleDocs.length > 0
                     ? moduleDocs.reduce((sum, d) => sum + (d.totalPages > 0 ? d.currentPage / d.totalPages : 0), 0) / moduleDocs.length * 100
                     : 0
@@ -228,162 +379,209 @@ export default function Dashboard() {
                   const weekMin        = data.sessions
                     .filter(s => s.moduleId === m.id && s.date >= weekAgo)
                     .reduce((sum, s) => sum + s.durationMinutes, 0)
-                  const daysUntilExam = m.examDate ? differenceInDays(parseISO(m.examDate), new Date()) : null
+                  const daysUntilExam  = m.examDate
+                    ? differenceInDays(parseISO(m.examDate), new Date())
+                    : null
 
                   return (
-                    <div key={m.id} className="th-card-secondary p-4">
-                      <div className="flex items-center justify-between gap-3 mb-3">
+                    <li key={m.id} className="th-card-secondary p-4 rounded-xl">
+                      <div className="flex items-start justify-between gap-3 mb-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: m.color }} />
+                          <span
+                            className="w-3 h-3 rounded-full shrink-0 mt-0.5"
+                            aria-hidden="true"
+                            style={{ backgroundColor: m.color }}
+                          />
                           <div>
-                            <div className="font-medium th-text text-sm">{m.name}</div>
-                            <div className="text-xs th-text-3">{m.moduleNumber} · {m.credits} ECTS</div>
+                            <div className="text-sm font-semibold" style={{ color: 'var(--th-text)' }}>
+                              {m.name}
+                            </div>
+                            <div className="text-xs mt-0.5" style={{ color: 'var(--th-text-3)' }}>
+                              {m.moduleNumber} · {m.credits} ECTS
+                            </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3 text-xs th-text-2">
+                        <div className="flex items-center gap-3 shrink-0">
                           {daysUntilExam !== null && (
                             <span
-                              className="font-medium"
-                              style={{ color: daysUntilExam <= 14 ? 'var(--th-danger)' : 'var(--th-text-2)' }}
+                              className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                              style={{
+                                background: daysUntilExam <= 14 ? 'var(--th-danger-soft)' : 'var(--th-bg-secondary)',
+                                color:      daysUntilExam <= 14 ? 'var(--th-danger)'      : 'var(--th-text-2)',
+                              }}
                             >
                               Prüfung in {daysUntilExam}d
                             </span>
                           )}
-                          <span>{weekMin}min/Woche</span>
+                          <span className="text-xs" style={{ color: 'var(--th-text-3)' }}>
+                            {weekMin} min/W
+                          </span>
                         </div>
                       </div>
 
                       {moduleDocs.length > 0 && (
-                        <div className="mb-2">
-                          <div className="flex justify-between text-xs th-text-3 mb-1">
+                        <div className="mb-3">
+                          <div
+                            className="flex justify-between text-xs mb-1.5"
+                            style={{ color: 'var(--th-text-3)' }}
+                          >
                             <span>Studienbriefe gelesen</span>
-                            <span>{Math.round(docProgress)}%</span>
+                            <span className="font-semibold">{Math.round(docProgress)}%</span>
                           </div>
-                          <div className="h-1.5 rounded-full" style={{ background: 'var(--th-border)' }}>
+                          <div
+                            className="h-1.5 rounded-full overflow-hidden"
+                            style={{ background: 'var(--th-border)' }}
+                            role="progressbar"
+                            aria-valuenow={Math.round(docProgress)}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            aria-label={`Lesefortschritt ${m.name}: ${Math.round(docProgress)}%`}
+                          >
                             <div
-                              className="h-full rounded-full transition-all"
-                              style={{ width: `${docProgress}%`, backgroundColor: m.color }}
+                              className="h-full rounded-full"
+                              style={{
+                                width: `${docProgress}%`,
+                                backgroundColor: m.color,
+                                transition: 'width 600ms cubic-bezier(0.4,0,0.2,1)',
+                              }}
                             />
                           </div>
                         </div>
                       )}
 
-                      <div className="flex gap-4 text-xs th-text-3 mt-2">
+                      <div className="flex gap-4 text-xs" style={{ color: 'var(--th-text-3)' }}>
                         <span>{moduleDocs.length} Briefe</span>
-                        <span style={{ color: dueForModule > 0 ? 'var(--th-danger)' : 'var(--th-text-3)', fontWeight: dueForModule > 0 ? '500' : 'normal' }}>
+                        <span
+                          style={{
+                            color:      dueForModule > 0 ? 'var(--th-danger)' : 'var(--th-text-3)',
+                            fontWeight: dueForModule > 0 ? '600'              : 'normal',
+                          }}
+                        >
                           {dueForModule} fällige Karten
                         </span>
                         <span>{totalForModule} Karten gesamt</span>
                       </div>
-                    </div>
+                    </li>
                   )
                 })}
-              </div>
-            </div>
+              </ul>
+            </section>
           )}
 
           {/* Upcoming exams */}
           {upcomingExams.length > 0 && (
-            <div className="th-card p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <AlertCircle size={16} style={{ color: 'var(--th-danger)' }} />
-                <h2 className="font-semibold th-section-title">Kommende Prüfungen</h2>
-              </div>
-              <div>
+            <section aria-labelledby="exams-heading" className="th-card p-6">
+              <h2 id="exams-heading" className="flex items-center gap-2 th-section-title mb-4">
+                <AlertCircle size={16} aria-hidden="true" style={{ color: 'var(--th-danger)' }} />
+                Kommende Prüfungen
+              </h2>
+              <ul role="list" style={{ listStyle: 'none' }}>
                 {upcomingExams.map(e => {
                   const module = data.modules.find(m => m.id === e.moduleId)
-                  return <UpcomingEvent key={e.id} event={e} moduleName={module?.name} />
+                  return <EventRow key={e.id} event={e} moduleName={module?.name} />
                 })}
-              </div>
-            </div>
+              </ul>
+            </section>
           )}
         </div>
 
         {/* Right column */}
         <div className="space-y-6">
+
           {/* Quick actions */}
-          <div className="th-card p-5">
-            <h2 className="font-semibold th-section-title mb-4">Schnellzugriff</h2>
-            <div className="space-y-1">
-              <Link
-                to="/karteikarten"
-                className="flex items-center gap-3 p-3 rounded-[var(--th-radius)] transition-colors"
-                style={{ borderRadius: 'var(--th-radius)' }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'var(--th-card-hover)')}
-                onMouseLeave={e => (e.currentTarget.style.background = '')}
-              >
-                <div
-                  className="p-2 rounded-lg"
-                  style={{
-                    background: dueCards.length > 0 ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)',
-                    color: dueCards.length > 0 ? '#ef4444' : '#10b981',
-                  }}
+          <section aria-labelledby="quicklinks-heading" className="th-card p-6">
+            <h2 id="quicklinks-heading" className="th-section-title mb-4">Schnellzugriff</h2>
+            <nav aria-label="Schnellzugriff" className="space-y-1">
+              {[
+                {
+                  to:   '/karteikarten',
+                  icon: BrainCircuit,
+                  bg:   dueCards.length > 0 ? 'rgba(239,68,68,0.12)'   : 'rgba(16,185,129,0.12)',
+                  fg:   dueCards.length > 0 ? '#EF4444'                 : '#10B981',
+                  label: dueCards.length > 0 ? `${dueCards.length} Karten lernen` : 'Karteikarten',
+                  sub:  'Spaced Repetition',
+                },
+                {
+                  to:   '/dokumente',
+                  icon: FileText,
+                  bg:   'rgba(59,130,246,0.12)',
+                  fg:   '#3B82F6',
+                  label: 'Studienbriefe',
+                  sub:  `${docsInProgress.length} in Bearbeitung`,
+                },
+                {
+                  to:   '/kalender',
+                  icon: Calendar,
+                  bg:   'rgba(139,92,246,0.12)',
+                  fg:   '#8B5CF6',
+                  label: 'Kalender',
+                  sub:  `${upcomingDeadlines.length} kommende Termine`,
+                },
+              ].map(item => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className="flex items-center gap-3 px-3 py-3 rounded-xl no-underline group"
+                  style={{ transition: 'background 150ms ease' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--th-card-hover)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = '')}
                 >
-                  <BrainCircuit size={16} />
-                </div>
-                <div>
-                  <div className="text-sm font-medium th-text">
-                    {dueCards.length > 0 ? `${dueCards.length} Karten lernen` : 'Karteikarten'}
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: item.bg, color: item.fg }}
+                  >
+                    <item.icon size={17} aria-hidden="true" />
                   </div>
-                  <div className="text-xs th-text-3">Spaced Repetition</div>
-                </div>
-              </Link>
-              <Link
-                to="/dokumente"
-                className="flex items-center gap-3 p-3"
-                style={{ borderRadius: 'var(--th-radius)' }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'var(--th-card-hover)')}
-                onMouseLeave={e => (e.currentTarget.style.background = '')}
-              >
-                <div className="p-2 rounded-lg" style={{ background: 'rgba(59,130,246,0.12)', color: '#3b82f6' }}>
-                  <FileText size={16} />
-                </div>
-                <div>
-                  <div className="text-sm font-medium th-text">Studienbriefe</div>
-                  <div className="text-xs th-text-3">{docsInProgress.length} in Bearbeitung</div>
-                </div>
-              </Link>
-              <Link
-                to="/kalender"
-                className="flex items-center gap-3 p-3"
-                style={{ borderRadius: 'var(--th-radius)' }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'var(--th-card-hover)')}
-                onMouseLeave={e => (e.currentTarget.style.background = '')}
-              >
-                <div className="p-2 rounded-lg" style={{ background: 'rgba(139,92,246,0.12)', color: '#8b5cf6' }}>
-                  <Calendar size={16} />
-                </div>
-                <div>
-                  <div className="text-sm font-medium th-text">Kalender</div>
-                  <div className="text-xs th-text-3">{upcomingDeadlines.length} kommende Termine</div>
-                </div>
-              </Link>
-            </div>
-          </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold" style={{ color: 'var(--th-text)' }}>
+                      {item.label}
+                    </div>
+                    <div className="text-xs mt-0.5" style={{ color: 'var(--th-text-3)' }}>
+                      {item.sub}
+                    </div>
+                  </div>
+                  <ArrowRight
+                    size={14}
+                    aria-hidden="true"
+                    style={{ color: 'var(--th-text-3)', flexShrink: 0 }}
+                  />
+                </Link>
+              ))}
+            </nav>
+          </section>
 
           {/* Upcoming events */}
           {upcomingDeadlines.length > 0 && (
-            <div className="th-card p-5">
-              <h2 className="font-semibold th-section-title mb-4">Nächste Termine</h2>
-              <div>
+            <section aria-labelledby="upcoming-heading" className="th-card p-6">
+              <h2 id="upcoming-heading" className="th-section-title mb-4">Nächste Termine</h2>
+              <ul role="list" style={{ listStyle: 'none' }}>
                 {upcomingDeadlines.map(e => {
                   const module = data.modules.find(m => m.id === e.moduleId)
-                  return <UpcomingEvent key={e.id} event={e} moduleName={module?.moduleNumber} />
+                  return <EventRow key={e.id} event={e} moduleName={module?.moduleNumber} />
                 })}
-              </div>
-            </div>
+              </ul>
+            </section>
           )}
 
-          {/* No modules hint */}
+          {/* Empty state — no modules */}
           {data.modules.length === 0 && (
-            <div className="th-card p-6 text-center" style={{ borderStyle: 'dashed' }}>
-              <BookOpen size={32} className="mx-auto mb-3 th-text-3" />
-              <div className="text-sm font-medium th-text mb-1">Fang hier an!</div>
-              <div className="text-xs th-text-3 mb-4">Erstelle dein erstes FernUni-Modul</div>
-              <Link
-                to="/module"
-                className="th-btn th-btn-primary inline-flex px-4 py-2 text-sm"
+            <div
+              className="th-card p-8 text-center"
+              style={{ borderStyle: 'dashed' }}
+            >
+              <div
+                className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
+                style={{ background: 'var(--th-accent-soft)' }}
               >
+                <BookOpen size={28} aria-hidden="true" style={{ color: 'var(--th-accent)' }} />
+              </div>
+              <h3 className="text-sm font-bold mb-1" style={{ color: 'var(--th-text)' }}>
+                Fang hier an!
+              </h3>
+              <p className="text-xs mb-5" style={{ color: 'var(--th-text-3)' }}>
+                Erstelle dein erstes FernUni-Modul
+              </p>
+              <Link to="/module" className="th-btn th-btn-primary text-sm inline-flex">
                 Module anlegen
               </Link>
             </div>

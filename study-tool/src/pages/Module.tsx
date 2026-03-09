@@ -16,25 +16,25 @@ import { format as fmtDate } from 'date-fns'
 const SEMESTER_OPTIONS = getNextSemesters(10)
 
 const MODULE_COLORS = [
-  '#003366', '#0066cc', '#339966', '#cc6600', '#9933cc',
-  '#cc3333', '#006699', '#669900', '#996600', '#336699',
+  '#0052A5', '#0077CC', '#059669', '#D97706', '#7C3AED',
+  '#DC2626', '#0891B2', '#65A30D', '#CA8A04', '#4F46E5',
 ]
 
 const STATUS_LABELS: Record<ModuleStatus, string> = {
-  aktiv: 'Aktiv',
+  aktiv:         'Aktiv',
   abgeschlossen: 'Abgeschlossen',
-  geplant: 'Geplant',
-  pausiert: 'Pausiert',
+  geplant:       'Geplant',
+  pausiert:      'Pausiert',
 }
 
-const STATUS_COLORS: Record<ModuleStatus, { bg: string; color: string }> = {
-  aktiv:         { bg: 'rgba(22,163,74,0.15)',   color: '#22c55e'  },
-  abgeschlossen: { bg: 'var(--th-card-secondary)', color: 'var(--th-text-2)' },
-  geplant:       { bg: 'rgba(59,130,246,0.15)',   color: '#60a5fa'  },
-  pausiert:      { bg: 'rgba(234,179,8,0.15)',    color: '#d97706'  },
+const STATUS_STYLES: Record<ModuleStatus, { bg: string; color: string }> = {
+  aktiv:         { bg: 'rgba(5,150,105,0.12)',  color: '#059669' },
+  abgeschlossen: { bg: 'var(--th-bg-secondary)', color: 'var(--th-text-2)' },
+  geplant:       { bg: 'rgba(79,70,229,0.12)',  color: '#6366F1' },
+  pausiert:      { bg: 'rgba(245,158,11,0.12)', color: '#D97706' },
 }
 
-// ─── Passed Toggle (3-state: undefined / true / false) ───────────────────────
+/* ─── PassedToggle (3-state) ─────────────────────────────────────────────── */
 
 function PassedToggle({ value, onChange }: { value?: boolean; onChange: (v: boolean | undefined) => void }) {
   const cycle = () => {
@@ -42,51 +42,57 @@ function PassedToggle({ value, onChange }: { value?: boolean; onChange: (v: bool
     else if (value === true) onChange(false)
     else onChange(undefined)
   }
-  if (value === true) return (
-    <button onClick={cycle} className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors whitespace-nowrap"
-      style={{ background: 'rgba(22,163,74,0.15)', color: '#22c55e' }}>
-      <CheckCircle2 size={12} /> Bestanden
-    </button>
-  )
-  if (value === false) return (
-    <button onClick={cycle} className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors whitespace-nowrap"
-      style={{ background: 'rgba(220,38,38,0.15)', color: '#f87171' }}>
-      <XCircle size={12} /> Nicht bestanden
-    </button>
-  )
+
+  const label = value === true ? 'Bestanden' : value === false ? 'Nicht bestanden' : 'Ergebnis'
+  const style = value === true
+    ? { background: 'rgba(5,150,105,0.12)', color: '#059669' }
+    : value === false
+    ? { background: 'rgba(220,38,38,0.12)', color: '#EF4444' }
+    : { background: 'var(--th-bg-secondary)', color: 'var(--th-text-3)' }
+
   return (
-    <button onClick={cycle} className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs th-text-3 transition-colors whitespace-nowrap"
-      style={{ background: 'var(--th-card-secondary)' }}>
-      <Minus size={12} /> Ergebnis
+    <button
+      type="button"
+      onClick={cycle}
+      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap"
+      style={style}
+      aria-label={`Prüfungsergebnis: ${label}`}
+      aria-pressed={value !== undefined}
+    >
+      {value === true  ? <CheckCircle2 size={12} aria-hidden="true" /> : null}
+      {value === false ? <XCircle      size={12} aria-hidden="true" /> : null}
+      {value === undefined ? <Minus   size={12} aria-hidden="true" /> : null}
+      {label}
     </button>
   )
 }
 
-// ─── Done Toggle ─────────────────────────────────────────────────────────────
+/* ─── DoneToggle ─────────────────────────────────────────────────────────── */
 
 function DoneToggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
+      type="button"
       onClick={() => onChange(!value)}
-      className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors whitespace-nowrap"
-      style={value
-        ? { background: 'rgba(59,130,246,0.15)', color: '#60a5fa' }
-        : { background: 'var(--th-card-secondary)', color: 'var(--th-text-3)' }
+      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap"
+      style={
+        value
+          ? { background: 'rgba(79,70,229,0.12)', color: '#6366F1' }
+          : { background: 'var(--th-bg-secondary)', color: 'var(--th-text-3)' }
       }
+      aria-pressed={value}
+      aria-label={value ? 'Als offen markieren' : 'Als erledigt markieren'}
     >
-      {value ? <Check size={12} /> : <Minus size={12} />}
+      {value ? <Check size={12} aria-hidden="true" /> : <Minus size={12} aria-hidden="true" />}
       {value ? 'Erledigt' : 'Offen'}
     </button>
   )
 }
 
-// ─── Module Detail View ───────────────────────────────────────────────────────
+/* ─── Module Detail ──────────────────────────────────────────────────────── */
 
 function ModuleDetail({
-  module,
-  onBack,
-  onEdit,
-  onDelete,
+  module, onBack, onEdit, onDelete,
 }: {
   module: StudyModule
   onBack: () => void
@@ -96,31 +102,23 @@ function ModuleDetail({
   const { data, updateModule } = useApp()
   const stats = useModuleStats(module.id)
 
-  // Initialize exams: always keep 2 slots
   const initExams = (): [ModuleExam, ModuleExam] => {
-    const saved = module.exams ?? (
-      module.examDate ? [{ id: generateId(), date: module.examDate }] : []
-    )
-    return [
-      saved[0] ?? { id: generateId() },
-      saved[1] ?? { id: generateId() },
-    ]
+    const saved = module.exams ?? (module.examDate ? [{ id: generateId(), date: module.examDate }] : [])
+    return [saved[0] ?? { id: generateId() }, saved[1] ?? { id: generateId() }]
   }
 
-  const [exams, setExams] = useState<[ModuleExam, ModuleExam]>(initExams)
+  const [exams, setExams]           = useState<[ModuleExam, ModuleExam]>(initExams)
   const [assignments, setAssignments] = useState<ModuleAssignment[]>(
     module.assignments ?? [{ id: generateId(), title: 'Einsendearbeit 1', done: false }]
   )
 
-  // Resync when switching modules
   useEffect(() => {
     setExams(initExams())
     setAssignments(module.assignments ?? [{ id: generateId(), title: 'Einsendearbeit 1', done: false }])
   }, [module.id])
 
-  const save = (newExams: [ModuleExam, ModuleExam], newAssignments: ModuleAssignment[]) => {
-    updateModule({ ...module, exams: newExams, assignments: newAssignments })
-  }
+  const save = (e: [ModuleExam, ModuleExam], a: ModuleAssignment[]) =>
+    updateModule({ ...module, exams: e, assignments: a })
 
   const updateExam = (idx: 0 | 1, changes: Partial<ModuleExam>) => {
     const updated: [ModuleExam, ModuleExam] = [{ ...exams[0] }, { ...exams[1] }]
@@ -136,11 +134,7 @@ function ModuleDetail({
   }
 
   const addAssignment = () => {
-    const newA: ModuleAssignment = {
-      id: generateId(),
-      title: `Einsendearbeit ${assignments.length + 1}`,
-      done: false,
-    }
+    const newA: ModuleAssignment = { id: generateId(), title: `Einsendearbeit ${assignments.length + 1}`, done: false }
     const updated = [...assignments, newA]
     setAssignments(updated)
     save(exams, updated)
@@ -152,81 +146,134 @@ function ModuleDetail({
     save(exams, updated)
   }
 
-  const docs = data.documents.filter(d => d.moduleId === module.id)
-  const cards = data.flashcards.filter(c => c.moduleId === module.id)
-  const dueCount = getDueCards(data.flashcards, module.id).length
+  const docs      = data.documents.filter(d => d.moduleId === module.id)
+  const cards     = data.flashcards.filter(c => c.moduleId === module.id)
+  const dueCount  = getDueCards(data.flashcards, module.id).length
 
   return (
-    <div className="min-h-screen bg-[var(--th-bg)]">
+    <div className="min-h-screen" style={{ background: 'var(--th-bg)' }}>
       {/* Top bar */}
-      <div className="bg-white border-b border-[var(--th-border)] px-6 py-3 flex items-center gap-4">
+      <div
+        className="sticky top-0 z-10 flex items-center gap-3 px-6 py-3 flex-wrap"
+        style={{
+          background: 'var(--th-card)',
+          borderBottom: '1px solid var(--th-border)',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+        }}
+      >
         <button
           onClick={onBack}
-          className="flex items-center gap-1.5 text-sm th-text-2 hover:text-slate-900 transition-colors"
+          className="th-btn th-btn-ghost px-3 py-2 text-sm gap-1.5"
+          style={{ minHeight: 'auto' }}
         >
-          <ArrowLeft size={16} /> Zur Übersicht
+          <ArrowLeft size={15} aria-hidden="true" />
+          Zur Übersicht
         </button>
-        <div className="w-px h-5 bg-slate-200" />
-        <span className="font-mono text-xs th-text-3">{module.moduleNumber}</span>
-        <span className="text-sm font-medium th-text flex-1 truncate">{module.name}</span>
-        <span className="text-xs px-2 py-1 rounded-full font-medium" style={{ background: STATUS_COLORS[module.status].bg, color: STATUS_COLORS[module.status].color }}>
+        <div aria-hidden="true" className="w-px h-5" style={{ background: 'var(--th-border)' }} />
+        <code className="text-xs font-mono" style={{ color: 'var(--th-text-3)' }}>
+          {module.moduleNumber}
+        </code>
+        <span
+          className="text-sm font-semibold flex-1 truncate"
+          style={{ color: 'var(--th-text)' }}
+        >
+          {module.name}
+        </span>
+        <span
+          className="text-xs px-2.5 py-1 rounded-full font-semibold shrink-0"
+          style={STATUS_STYLES[module.status]}
+        >
           {STATUS_LABELS[module.status]}
         </span>
         <button
           onClick={onEdit}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm th-text-2 border border-[var(--th-border)] rounded-lg hover:bg-[var(--th-bg)] transition-colors"
+          className="th-btn th-btn-secondary text-sm gap-1.5 shrink-0"
+          style={{ minHeight: 'auto', padding: '0.375rem 0.875rem' }}
         >
-          <Pencil size={14} /> Bearbeiten
+          <Pencil size={13} aria-hidden="true" />
+          Bearbeiten
         </button>
         <button
           onClick={onDelete}
-          className="p-1.5 th-text-3 hover:text-red-600 transition-colors"
-          title="Modul löschen"
+          className="th-icon-btn hover:bg-red-50"
+          aria-label={`Modul "${module.name}" löschen`}
+          style={{ color: 'var(--th-text-3)' }}
         >
-          <Trash2 size={16} />
+          <Trash2 size={16} aria-hidden="true" />
         </button>
       </div>
 
-      {/* Color accent */}
-      <div className="h-1" style={{ backgroundColor: module.color }} />
+      {/* Color accent strip */}
+      <div className="h-1" style={{ backgroundColor: module.color }} aria-hidden="true" />
 
       <div className="p-6 max-w-6xl mx-auto">
-        {/* Module info header */}
+        {/* Module header card */}
         <div className="th-card p-6 mb-6">
           <div className="flex items-start gap-6 flex-wrap">
             <div className="flex-1 min-w-60">
-              <h1 className="text-2xl font-bold th-text mb-1">{module.name}</h1>
-              <div className="flex items-center gap-4 text-sm th-text-2 mb-3 flex-wrap">
+              <h1
+                className="text-2xl font-bold mb-2"
+                style={{ color: 'var(--th-text)', letterSpacing: '-0.03em' }}
+              >
+                {module.name}
+              </h1>
+              <div className="flex items-center gap-4 text-sm flex-wrap mb-3" style={{ color: 'var(--th-text-2)' }}>
                 <span>{module.semester}</span>
-                <span className="font-medium th-text-2">{module.credits} ECTS</span>
+                <span
+                  className="font-semibold px-2 py-0.5 rounded-full text-xs"
+                  style={{ background: 'var(--th-accent-soft)', color: 'var(--th-accent-soft-text)' }}
+                >
+                  {module.credits} ECTS
+                </span>
                 {module.moodleUrl && (
                   <a
                     href={module.moodleUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium"
+                    className="flex items-center gap-1 text-sm font-medium hover:underline focus-visible:underline"
+                    style={{ color: 'var(--th-accent)' }}
                   >
-                    <ExternalLink size={13} /> Moodle öffnen
+                    <ExternalLink size={13} aria-hidden="true" />
+                    Moodle öffnen
                   </a>
                 )}
               </div>
               {module.description && (
-                <p className="text-sm th-text-2 leading-relaxed">{module.description}</p>
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--th-text-2)' }}>
+                  {module.description}
+                </p>
               )}
             </div>
+
             {/* Quick stats */}
-            <div className="flex gap-4 shrink-0">
+            <div className="flex gap-2 shrink-0" role="list" aria-label="Modulstatistiken">
               {[
-                { label: 'Studienbriefe', value: docs.length, icon: <FileText size={18} /> },
-                { label: 'Karteikarten', value: cards.length, icon: <BrainCircuit size={18} /> },
-                { label: 'Fällig', value: dueCount, icon: <Clock size={18} />, alert: dueCount > 0 },
+                { label: 'Studienbriefe', value: docs.length,   icon: <FileText   size={20} aria-hidden="true" />, alert: false },
+                { label: 'Karteikarten', value: cards.length,   icon: <BrainCircuit size={20} aria-hidden="true" />, alert: false },
+                { label: 'Fällig',       value: dueCount,        icon: <Clock     size={20} aria-hidden="true" />, alert: dueCount > 0 },
               ].map(s => (
-                <div key={s.label} className="text-center px-4">
-                  <div className={`flex justify-center mb-1 ${s.alert ? 'text-red-500' : 'th-text-3'}`}>
+                <div
+                  key={s.label}
+                  className="text-center px-4 py-3 rounded-xl"
+                  style={{ background: 'var(--th-bg-secondary)', minWidth: '5rem' }}
+                  role="listitem"
+                >
+                  <div
+                    className="flex justify-center mb-1.5"
+                    style={{ color: s.alert ? 'var(--th-danger)' : 'var(--th-text-3)' }}
+                  >
                     {s.icon}
                   </div>
-                  <div className={`text-2xl font-bold ${s.alert ? 'text-red-600' : 'th-text'}`}>{s.value}</div>
-                  <div className="text-xs th-text-3">{s.label}</div>
+                  <div
+                    className="text-2xl font-bold leading-none mb-1"
+                    style={{
+                      color: s.alert ? 'var(--th-danger)' : 'var(--th-text)',
+                      letterSpacing: '-0.04em',
+                    }}
+                  >
+                    {s.value}
+                  </div>
+                  <div className="text-xs" style={{ color: 'var(--th-text-3)' }}>{s.label}</div>
                 </div>
               ))}
             </div>
@@ -234,205 +281,273 @@ function ModuleDetail({
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left column: Exams + Assignments */}
+          {/* Left: Exams + Assignments */}
           <div className="lg:col-span-2 space-y-6">
 
-            {/* ── Prüfungstermine ─────────────────────────────────── */}
-            <div className="th-card p-6">
-              <h2 className="flex items-center gap-2 font-semibold th-text mb-4">
-                <GraduationCap size={18} className="th-text-2" /> Prüfungstermine
+            {/* Prüfungstermine */}
+            <section aria-labelledby="exams-heading" className="th-card p-6">
+              <h2 id="exams-heading" className="flex items-center gap-2 th-section-title mb-5">
+                <GraduationCap size={18} aria-hidden="true" style={{ color: 'var(--th-text-3)' }} />
+                Prüfungstermine
               </h2>
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {([0, 1] as const).map(idx => {
-                  const exam = exams[idx]
+                  const exam  = exams[idx]
                   const label = idx === 0 ? '1. Prüfungsversuch' : '2. Prüfungsversuch'
                   return (
-                    <div key={idx} className="grid grid-cols-1 sm:grid-cols-[180px_1fr_1fr_auto] items-center gap-3 py-3 border-b border-[var(--th-border)] last:border-0">
-                      <span className="text-sm font-medium th-text-2">{label}</span>
-                      <div>
-                        <label className="block text-xs th-text-3 mb-0.5">Datum</label>
-                        <input
-                          type="date"
-                          className="w-full border border-[var(--th-border)] rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={exam.date ?? ''}
-                          onChange={e => updateExam(idx, { date: e.target.value || undefined })}
-                        />
+                    <fieldset
+                      key={idx}
+                      className="rounded-xl p-4"
+                      style={{
+                        border: '1px solid var(--th-border)',
+                        background: 'var(--th-card-secondary)',
+                      }}
+                    >
+                      <legend className="text-sm font-semibold px-1" style={{ color: 'var(--th-text-2)' }}>
+                        {label}
+                      </legend>
+                      <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] items-end gap-3 mt-3">
+                        <div>
+                          <label className="th-label" htmlFor={`exam-date-${idx}`}>Datum</label>
+                          <input
+                            id={`exam-date-${idx}`}
+                            type="date"
+                            className="th-input"
+                            value={exam.date ?? ''}
+                            onChange={e => updateExam(idx, { date: e.target.value || undefined })}
+                          />
+                        </div>
+                        <div>
+                          <label className="th-label" htmlFor={`exam-grade-${idx}`}>Note</label>
+                          <input
+                            id={`exam-grade-${idx}`}
+                            type="text"
+                            placeholder="z.B. 2,3"
+                            className="th-input"
+                            value={exam.grade ?? ''}
+                            onChange={e => updateExam(idx, { grade: e.target.value || undefined })}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="th-label">Ergebnis</span>
+                          <PassedToggle value={exam.passed} onChange={v => updateExam(idx, { passed: v })} />
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-xs th-text-3 mb-0.5">Note</label>
-                        <input
-                          type="text"
-                          placeholder="z.B. 2,3"
-                          className="w-full border border-[var(--th-border)] rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={exam.grade ?? ''}
-                          onChange={e => updateExam(idx, { grade: e.target.value || undefined })}
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1 items-end">
-                        <label className="text-xs th-text-3">Ergebnis</label>
-                        <PassedToggle
-                          value={exam.passed}
-                          onChange={v => updateExam(idx, { passed: v })}
-                        />
-                      </div>
-                    </div>
+                    </fieldset>
                   )
                 })}
               </div>
-            </div>
+            </section>
 
-            {/* ── Einsendearbeiten ─────────────────────────────────── */}
-            <div className="th-card p-6">
-              <h2 className="flex items-center gap-2 font-semibold th-text mb-4">
-                <ClipboardList size={18} className="th-text-2" /> Einsendearbeiten
+            {/* Einsendearbeiten */}
+            <section aria-labelledby="assignments-heading" className="th-card p-6">
+              <h2 id="assignments-heading" className="flex items-center gap-2 th-section-title mb-5">
+                <ClipboardList size={18} aria-hidden="true" style={{ color: 'var(--th-text-3)' }} />
+                Einsendearbeiten
               </h2>
 
               {assignments.length === 0 ? (
-                <p className="text-sm th-text-3 text-center py-4">Noch keine Einsendearbeiten</p>
+                <p className="text-sm text-center py-6" style={{ color: 'var(--th-text-3)' }}>
+                  Noch keine Einsendearbeiten
+                </p>
               ) : (
-                <div className="space-y-3">
+                <ul className="space-y-3" role="list">
                   {assignments.map(ea => (
-                    <div key={ea.id} className="border border-[var(--th-border)] rounded-xl p-3">
-                      <div className="grid grid-cols-[1fr_auto_auto_auto_auto] items-start gap-2 mb-2">
+                    <li
+                      key={ea.id}
+                      className="rounded-xl p-4"
+                      style={{ border: '1px solid var(--th-border)', background: 'var(--th-card-secondary)' }}
+                    >
+                      <div className="flex items-start gap-2 mb-3">
                         <input
                           type="text"
-                          className="border border-[var(--th-border)] rounded-lg px-2 py-1 text-sm font-medium th-text-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="th-input text-sm font-semibold flex-1"
                           value={ea.title}
                           onChange={e => updateAssignment(ea.id, { title: e.target.value })}
+                          aria-label="Titel der Einsendearbeit"
                         />
-                        <DoneToggle value={ea.done} onChange={v => updateAssignment(ea.id, { done: v })} />
+                        <DoneToggle   value={ea.done}   onChange={v => updateAssignment(ea.id, { done: v })} />
                         <PassedToggle value={ea.passed} onChange={v => updateAssignment(ea.id, { passed: v })} />
                         <button
+                          type="button"
                           onClick={() => removeAssignment(ea.id)}
-                          className="p-1.5 text-slate-300 hover:text-red-500 transition-colors"
+                          className="th-icon-btn hover:bg-red-50"
+                          aria-label={`Einsendearbeit "${ea.title}" entfernen`}
+                          style={{ color: 'var(--th-text-3)', alignSelf: 'flex-start' }}
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={14} aria-hidden="true" />
                         </button>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs th-text-3 mb-0.5">Abgabedatum</label>
+                          <label className="th-label" htmlFor={`ea-date-${ea.id}`}>Abgabedatum</label>
                           <input
+                            id={`ea-date-${ea.id}`}
                             type="date"
-                            className="w-full border border-[var(--th-border)] rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="th-input text-sm"
                             value={ea.date ?? ''}
                             onChange={e => updateAssignment(ea.id, { date: e.target.value || undefined })}
                           />
                         </div>
                         <div>
-                          <label className="block text-xs th-text-3 mb-0.5">Note</label>
+                          <label className="th-label" htmlFor={`ea-grade-${ea.id}`}>Note</label>
                           <input
+                            id={`ea-grade-${ea.id}`}
                             type="text"
                             placeholder="z.B. 2,3"
-                            className="w-full border border-[var(--th-border)] rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="th-input text-sm"
                             value={ea.grade ?? ''}
                             onChange={e => updateAssignment(ea.id, { grade: e.target.value || undefined })}
                           />
                         </div>
                       </div>
-                    </div>
+                    </li>
                   ))}
-                </div>
+                </ul>
               )}
 
               <button
+                type="button"
                 onClick={addAssignment}
-                className="mt-4 flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                className="mt-4 th-btn th-btn-ghost text-sm gap-2"
+                style={{ color: 'var(--th-accent)', paddingLeft: '0.5rem' }}
               >
-                <Plus size={16} /> Einsendearbeit hinzufügen
+                <Plus size={15} aria-hidden="true" />
+                Einsendearbeit hinzufügen
               </button>
-            </div>
+            </section>
           </div>
 
-          {/* Right column: Docs + Stats */}
+          {/* Right: Docs + Stats */}
           <div className="space-y-6">
-            {/* ── Studienbriefe ─────────────────────────────────────── */}
-            <div className="th-card p-5">
-              <h2 className="flex items-center gap-2 font-semibold th-text mb-3 text-sm">
-                <FileText size={16} className="th-text-2" /> Studienbriefe
+            {/* Studienbriefe */}
+            <section aria-labelledby="docs-heading" className="th-card p-5">
+              <h2 id="docs-heading" className="flex items-center gap-2 th-section-title mb-4" style={{ fontSize: '0.9rem' }}>
+                <FileText size={15} aria-hidden="true" style={{ color: 'var(--th-text-3)' }} />
+                Studienbriefe
               </h2>
               {docs.length === 0 ? (
-                <p className="text-xs th-text-3 text-center py-3">Keine Studienbriefe</p>
+                <p className="text-xs text-center py-4" style={{ color: 'var(--th-text-3)' }}>
+                  Keine Studienbriefe
+                </p>
               ) : (
-                <div className="space-y-2">
+                <ul className="space-y-3" role="list">
                   {docs.map(doc => {
-                    const progress = doc.totalPages > 0 ? Math.round((doc.currentPage / doc.totalPages) * 100) : 0
+                    const progress = doc.totalPages > 0
+                      ? Math.round((doc.currentPage / doc.totalPages) * 100)
+                      : 0
                     return (
-                      <div key={doc.id} className="text-xs">
-                        <div className="flex justify-between th-text-2 mb-0.5">
-                          <span className="truncate flex-1 mr-2">{doc.name}</span>
-                          <span className="th-text-3 shrink-0">{progress}%</span>
+                      <li key={doc.id}>
+                        <div className="flex justify-between text-xs mb-1.5">
+                          <span className="truncate flex-1 mr-2 font-medium" style={{ color: 'var(--th-text-2)' }}>
+                            {doc.name}
+                          </span>
+                          <span className="shrink-0 font-semibold" style={{ color: 'var(--th-text-3)' }}>
+                            {progress}%
+                          </span>
                         </div>
-                        <div className="h-1.5 bg-[var(--th-bg-secondary,#f1f5f9)] rounded-full overflow-hidden">
-                          <div className="h-full bg-blue-400 rounded-full" style={{ width: `${progress}%` }} />
+                        <div
+                          className="h-1.5 rounded-full overflow-hidden"
+                          style={{ background: 'var(--th-border)' }}
+                          role="progressbar"
+                          aria-valuenow={progress}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-label={`Lesefortschritt ${doc.name}: ${progress}%`}
+                        >
+                          <div
+                            className="h-full rounded-full"
+                            style={{
+                              width: `${progress}%`,
+                              background: 'var(--th-accent)',
+                              transition: 'width 600ms cubic-bezier(0.4,0,0.2,1)',
+                            }}
+                          />
                         </div>
                         {doc.lastReadAt && (
-                          <div className="th-text-3 mt-0.5">
+                          <div className="text-xs mt-1" style={{ color: 'var(--th-text-3)' }}>
                             Zuletzt: {format(parseISO(doc.lastReadAt), 'dd.MM.yyyy', { locale: de })}
                           </div>
                         )}
-                      </div>
+                      </li>
                     )
                   })}
-                </div>
+                </ul>
               )}
-            </div>
+            </section>
 
-            {/* ── Lernstatistik ─────────────────────────────────────── */}
-            <div className="th-card p-5">
-              <h2 className="flex items-center gap-2 font-semibold th-text mb-3 text-sm">
-                <BrainCircuit size={16} className="th-text-2" /> Lernstatistik
+            {/* Lernstatistik */}
+            <section aria-labelledby="stats-heading" className="th-card p-5">
+              <h2 id="stats-heading" className="flex items-center gap-2 th-section-title mb-4" style={{ fontSize: '0.9rem' }}>
+                <BrainCircuit size={15} aria-hidden="true" style={{ color: 'var(--th-text-3)' }} />
+                Lernstatistik
               </h2>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="th-text-2">Karteikarten gesamt</span>
-                  <span className="font-medium">{stats.totalCards}</span>
+              <dl className="space-y-2.5">
+                {[
+                  { label: 'Karteikarten gesamt', value: stats.totalCards, className: '' },
+                  { label: 'Heute fällig',         value: stats.dueCards,  className: stats.dueCards > 0 ? '' : '' },
+                  { label: 'Gut bekannt (≥14d)',   value: cards.filter(c => c.interval >= 14).length, className: 'text-green-600' },
+                ].map(row => (
+                  <div key={row.label} className="flex items-center justify-between">
+                    <dt className="text-sm" style={{ color: 'var(--th-text-2)' }}>{row.label}</dt>
+                    <dd
+                      className="text-sm font-semibold"
+                      style={{
+                        color: row.label === 'Heute fällig'
+                          ? stats.dueCards > 0 ? 'var(--th-danger)' : 'var(--th-success)'
+                          : row.label === 'Gut bekannt (≥14d)'
+                          ? 'var(--th-success)'
+                          : 'var(--th-text)',
+                      }}
+                    >
+                      {row.value}
+                    </dd>
+                  </div>
+                ))}
+                <div
+                  className="border-t pt-2.5 mt-2.5 flex items-center justify-between"
+                  style={{ borderColor: 'var(--th-border)' }}
+                >
+                  <dt className="text-sm" style={{ color: 'var(--th-text-2)' }}>Lernzeit diese Woche</dt>
+                  <dd className="text-sm font-semibold" style={{ color: 'var(--th-text)' }}>
+                    {stats.weekMinutes} min
+                  </dd>
                 </div>
-                <div className="flex justify-between">
-                  <span className="th-text-2">Heute fällig</span>
-                  <span className={`font-medium ${stats.dueCards > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    {stats.dueCards}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="th-text-2">Gut bekannt (≥14d)</span>
-                  <span className="font-medium text-green-600">
-                    {cards.filter(c => c.interval >= 14).length}
-                  </span>
-                </div>
-                <div className="h-px bg-[var(--th-bg-secondary,#f1f5f9)] my-1" />
-                <div className="flex justify-between">
-                  <span className="th-text-2">Lernzeit diese Woche</span>
-                  <span className="font-medium">{stats.weekMinutes} min</span>
-                </div>
-              </div>
-            </div>
+              </dl>
+            </section>
 
-            {/* ── Prüfungsübersicht ──────────────────────────────────── */}
+            {/* Prüfungsübersicht */}
             {(exams[0].date || exams[0].grade || exams[1].date || exams[1].grade) && (
-              <div className="th-card p-5">
-                <h2 className="flex items-center gap-2 font-semibold th-text mb-3 text-sm">
-                  <GraduationCap size={16} className="th-text-2" /> Prüfungsübersicht
+              <section aria-labelledby="exam-overview-heading" className="th-card p-5">
+                <h2 id="exam-overview-heading" className="flex items-center gap-2 th-section-title mb-4" style={{ fontSize: '0.9rem' }}>
+                  <GraduationCap size={15} aria-hidden="true" style={{ color: 'var(--th-text-3)' }} />
+                  Prüfungsübersicht
                 </h2>
-                <div className="space-y-2">
+                <dl className="space-y-2">
                   {exams.map((exam, idx) => {
                     if (!exam.date && !exam.grade && exam.passed === undefined) return null
                     return (
                       <div key={idx} className="flex items-center justify-between text-xs">
-                        <span className="th-text-2">{idx + 1}. Versuch</span>
-                        <div className="flex items-center gap-2">
+                        <dt style={{ color: 'var(--th-text-2)' }}>{idx + 1}. Versuch</dt>
+                        <dd className="flex items-center gap-2">
                           {exam.date && (
-                            <span className="th-text-2">{format(parseISO(exam.date), 'dd.MM.yy')}</span>
+                            <span style={{ color: 'var(--th-text-2)' }}>
+                              {format(parseISO(exam.date), 'dd.MM.yy')}
+                            </span>
                           )}
-                          {exam.grade && <span className="font-medium">{exam.grade}</span>}
-                          {exam.passed === true && <Check size={14} style={{ color: '#22c55e' }} />}
-                          {exam.passed === false && <X size={14} style={{ color: '#ef4444' }} />}
-                        </div>
+                          {exam.grade && (
+                            <span className="font-semibold" style={{ color: 'var(--th-text)' }}>
+                              {exam.grade}
+                            </span>
+                          )}
+                          {exam.passed === true  && <Check  size={13} aria-label="Bestanden"      style={{ color: 'var(--th-success)' }} />}
+                          {exam.passed === false && <X      size={13} aria-label="Nicht bestanden" style={{ color: 'var(--th-danger)' }} />}
+                        </dd>
                       </div>
                     )
                   })}
-                </div>
-              </div>
+                </dl>
+              </section>
             )}
           </div>
         </div>
@@ -441,132 +556,184 @@ function ModuleDetail({
   )
 }
 
-// ─── Module Card ──────────────────────────────────────────────────────────────
+/* ─── Module Card ────────────────────────────────────────────────────────── */
 
 function ModuleCard({
-  module,
-  onClick,
-  onEdit,
-  onDelete,
+  module, onClick, onEdit, onDelete,
 }: {
   module: StudyModule
   onClick: () => void
   onEdit: (m: StudyModule) => void
   onDelete: (id: string) => void
 }) {
-  const stats = useModuleStats(module.id)
-  const today = fmtDate(new Date(), 'yyyy-MM-dd')
-
-  // Best passed exam
-  const exams = module.exams ?? []
-  const passedExam = exams.find(e => e.passed === true)
+  const stats    = useModuleStats(module.id)
+  const today    = fmtDate(new Date(), 'yyyy-MM-dd')
+  const exams    = module.exams ?? []
+  const passed   = exams.find(e => e.passed === true)
   const nextExam = exams.find(e => e.date && e.date >= today)
 
   return (
-    <div
-      className="th-card overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+    <article
+      className="th-card overflow-hidden group"
+      style={{ cursor: 'pointer' }}
       onClick={onClick}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
+      tabIndex={0}
+      role="button"
+      aria-label={`Modul ${module.name} öffnen`}
     >
-      <div className="h-2" style={{ backgroundColor: module.color }} />
+      {/* Color top strip */}
+      <div className="h-1.5" style={{ backgroundColor: module.color }} aria-hidden="true" />
+
       <div className="p-5">
+        {/* Header */}
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="min-w-0 flex-1">
-            <div className="text-xs th-text-2 font-mono mb-1">{module.moduleNumber}</div>
-            <h3 className="font-semibold th-text leading-tight">{module.name}</h3>
-            <div className="text-xs th-text-2 mt-1">{module.semester}</div>
+            <code className="text-xs font-mono block mb-1" style={{ color: 'var(--th-text-3)' }}>
+              {module.moduleNumber}
+            </code>
+            <h3
+              className="font-semibold leading-tight"
+              style={{ color: 'var(--th-text)', letterSpacing: '-0.01em' }}
+            >
+              {module.name}
+            </h3>
+            <div className="text-xs mt-1" style={{ color: 'var(--th-text-2)' }}>
+              {module.semester}
+            </div>
           </div>
-          <span className={`text-xs px-2 py-1 rounded-full font-medium shrink-0 ${STATUS_COLORS[module.status]}`}>
+          <span
+            className="text-xs px-2.5 py-1 rounded-full font-semibold shrink-0"
+            style={STATUS_STYLES[module.status]}
+          >
             {STATUS_LABELS[module.status]}
           </span>
         </div>
 
         {module.description && (
-          <p className="text-xs th-text-2 mb-3 line-clamp-2">{module.description}</p>
+          <p
+            className="text-xs mb-3 line-clamp-2 leading-relaxed"
+            style={{ color: 'var(--th-text-2)' }}
+          >
+            {module.description}
+          </p>
         )}
 
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          <div className="text-center">
-            <div className="text-lg font-bold th-text">{module.credits}</div>
-            <div className="text-xs th-text-2">ECTS</div>
-          </div>
-          <div className="text-center">
-            <div className="text-lg font-bold th-text">{stats.docs.length}</div>
-            <div className="text-xs th-text-2">Briefe</div>
-          </div>
-          <div className="text-center">
-            <div className="text-lg font-bold" style={{ color: stats.dueCards > 0 ? '#cc3333' : '#339966' }}>
-              {stats.dueCards}
+        {/* Stats row */}
+        <div
+          className="grid grid-cols-3 gap-2 mb-4 py-3 rounded-xl text-center"
+          style={{ background: 'var(--th-bg-secondary)' }}
+          role="list"
+          aria-label="Modulstatistiken"
+        >
+          {[
+            { value: module.credits,          sub: 'ECTS',   alert: false },
+            { value: stats.docs.length,        sub: 'Briefe', alert: false },
+            { value: stats.dueCards,            sub: 'Fällig', alert: stats.dueCards > 0 },
+          ].map(item => (
+            <div key={item.sub} role="listitem">
+              <div
+                className="text-lg font-bold leading-none"
+                style={{
+                  color: item.alert ? 'var(--th-danger)' : 'var(--th-text)',
+                  letterSpacing: '-0.04em',
+                }}
+              >
+                {item.value}
+              </div>
+              <div className="text-xs mt-1" style={{ color: 'var(--th-text-2)' }}>
+                {item.sub}
+              </div>
             </div>
-            <div className="text-xs th-text-2">Fällig</div>
-          </div>
+          ))}
         </div>
 
-        {/* Exam / Assignment info */}
+        {/* Exam badges */}
         {nextExam?.date && (
-          <div className="flex items-center gap-2 text-xs rounded-lg p-2 mb-3"
-            style={{ background: 'rgba(234,179,8,0.12)', border: '1px solid rgba(234,179,8,0.25)', color: '#d97706' }}>
-            <GraduationCap size={12} />
+          <div
+            className="flex items-center gap-2 text-xs rounded-xl px-3 py-2 mb-3"
+            style={{
+              background: 'rgba(245,158,11,0.10)',
+              border:     '1px solid rgba(245,158,11,0.22)',
+              color:      '#D97706',
+            }}
+          >
+            <GraduationCap size={12} aria-hidden="true" />
             <span>Prüfung: {format(parseISO(nextExam.date), 'dd.MM.yyyy', { locale: de })}</span>
           </div>
         )}
-        {passedExam && (
-          <div className="flex items-center gap-2 text-xs rounded-lg p-2 mb-3"
-            style={{ background: 'rgba(22,163,74,0.12)', border: '1px solid rgba(22,163,74,0.25)', color: '#22c55e' }}>
-            <CheckCircle2 size={12} />
-            <span>Bestanden{passedExam.grade ? ` (${passedExam.grade})` : ''}</span>
-          </div>
-        )}
-        {module.examDate && exams.length === 0 && (
-          <div className="flex items-center gap-2 text-xs th-text-2 bg-[var(--th-bg)] rounded-lg p-2 mb-3">
-            <Clock size={12} />
-            <span>Prüfung: {format(parseISO(module.examDate), 'dd.MM.yyyy', { locale: de })}</span>
+        {passed && (
+          <div
+            className="flex items-center gap-2 text-xs rounded-xl px-3 py-2 mb-3"
+            style={{
+              background: 'rgba(5,150,105,0.10)',
+              border:     '1px solid rgba(5,150,105,0.22)',
+              color:      '#059669',
+            }}
+          >
+            <CheckCircle2 size={12} aria-hidden="true" />
+            <span>Bestanden{passed.grade ? ` (${passed.grade})` : ''}</span>
           </div>
         )}
 
-        <div className="flex items-center justify-between text-xs th-text-2">
-          <span>{stats.weekMinutes} min diese Woche</span>
-          <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+        {/* Footer */}
+        <div className="flex items-center justify-between">
+          <span className="text-xs" style={{ color: 'var(--th-text-3)' }}>
+            {stats.weekMinutes} min diese Woche
+          </span>
+          <div
+            className="flex gap-1"
+            onClick={e => e.stopPropagation()}
+            onKeyDown={e => e.stopPropagation()}
+          >
             <button
+              type="button"
               onClick={() => onEdit(module)}
-              className="p-1.5 rounded hover:bg-[var(--th-bg-secondary,#f1f5f9)] th-text-3 hover:th-text-2 transition-colors"
+              className="th-icon-btn"
+              aria-label={`Modul "${module.name}" bearbeiten`}
             >
-              <Pencil size={14} />
+              <Pencil size={14} aria-hidden="true" />
             </button>
             <button
+              type="button"
               onClick={() => onDelete(module.id)}
-              className="p-1.5 rounded hover:bg-red-50 th-text-3 hover:text-red-600 transition-colors"
+              className="th-icon-btn"
+              style={{ color: 'var(--th-text-3)' }}
+              aria-label={`Modul "${module.name}" löschen`}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.08)'; e.currentTarget.style.color = 'var(--th-danger)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.color = 'var(--th-text-3)' }}
             >
-              <Trash2 size={14} />
+              <Trash2 size={14} aria-hidden="true" />
             </button>
           </div>
         </div>
       </div>
-    </div>
+    </article>
   )
 }
 
-// ─── Module Form ──────────────────────────────────────────────────────────────
+/* ─── Module Form (modal) ────────────────────────────────────────────────── */
 
 type FormData = Omit<StudyModule, 'id' | 'createdAt'>
 
 const defaultForm: FormData = {
-  name: '',
-  moduleNumber: '',
-  credits: 5,
-  semester: SEMESTER_OPTIONS[0],
-  status: 'aktiv',
-  color: MODULE_COLORS[0],
-  examDate: '',
-  description: '',
-  moodleUrl: '',
-  exams: [],
-  assignments: [],
+  name: '', moduleNumber: '', credits: 5,
+  semester: SEMESTER_OPTIONS[0], status: 'aktiv',
+  color: MODULE_COLORS[0], examDate: '',
+  description: '', moodleUrl: '',
+  exams: [], assignments: [],
 }
 
-function ModuleForm({ initial, onSave, onCancel }: { initial?: StudyModule; onSave: (data: FormData) => void; onCancel: () => void }) {
-  const [form, setForm] = useState<FormData>(initial ? { ...initial } : { ...defaultForm })
-  const [search, setSearch] = useState('')
-  const [showDropdown, setShowDropdown] = useState(false)
+function ModuleForm({
+  initial, onSave, onCancel,
+}: {
+  initial?: StudyModule
+  onSave: (data: FormData) => void
+  onCancel: () => void
+}) {
+  const [form, setForm]           = useState<FormData>(initial ? { ...initial } : { ...defaultForm })
+  const [search, setSearch]       = useState('')
+  const [showDropdown, setDropdown] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
 
   const set = (key: keyof FormData, value: string | number | boolean) =>
@@ -574,103 +741,178 @@ function ModuleForm({ initial, onSave, onCancel }: { initial?: StudyModule; onSa
 
   const filteredModules = search.trim().length > 0
     ? FERNUNI_MODULES.filter(m =>
-        m.name.toLowerCase().includes(search.toLowerCase()) ||
-        m.number.includes(search)
+        m.name.toLowerCase().includes(search.toLowerCase()) || m.number.includes(search)
       ).slice(0, 8)
     : []
 
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
-        setShowDropdown(false)
-      }
+    const handleClick = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setDropdown(false)
     }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
   function selectModule(m: typeof FERNUNI_MODULES[0]) {
     setForm(f => ({ ...f, name: m.name, moduleNumber: m.number, credits: m.ects }))
     setSearch('')
-    setShowDropdown(false)
+    setDropdown(false)
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="th-card shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-lg font-semibold">{initial ? 'Modul bearbeiten' : 'Neues Modul'}</h2>
-          <button onClick={onCancel} className="p-1 rounded hover:bg-[var(--th-bg-secondary,#f1f5f9)]"><X size={20} /></button>
+    <div
+      className="th-modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+      onClick={e => { if (e.target === e.currentTarget) onCancel() }}
+    >
+      <div className="th-modal w-full max-w-lg">
+        {/* Modal header */}
+        <div
+          className="flex items-center justify-between px-6 py-4"
+          style={{ borderBottom: '1px solid var(--th-border)' }}
+        >
+          <h2 id="modal-title" className="text-base font-bold" style={{ color: 'var(--th-text)', letterSpacing: '-0.02em' }}>
+            {initial ? 'Modul bearbeiten' : 'Neues Modul anlegen'}
+          </h2>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="th-icon-btn"
+            aria-label="Formular schließen"
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
         </div>
-        <div className="p-6 space-y-4">
-          {/* Module autocomplete */}
+
+        <div className="px-6 py-5 space-y-5 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 140px)' }}>
+          {/* FernUni catalog search */}
           {!initial && (
             <div ref={searchRef} className="relative">
-              <label className="block text-sm font-medium th-text-2 mb-1">Modul aus FernUni-Katalog wählen</label>
+              <label className="th-label" htmlFor="module-search">
+                Aus FernUni-Katalog wählen
+              </label>
               <div className="relative">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 th-text-3 pointer-events-none" />
+                <Search
+                  size={15}
+                  aria-hidden="true"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                  style={{ color: 'var(--th-text-3)' }}
+                />
                 <input
-                  className="w-full border border-[var(--th-border)] rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  id="module-search"
+                  className="th-input"
+                  style={{ paddingLeft: '2.25rem' }}
                   placeholder="Modulname oder -nummer suchen…"
                   value={search}
-                  onChange={e => { setSearch(e.target.value); setShowDropdown(true) }}
-                  onFocus={() => search.trim().length > 0 && setShowDropdown(true)}
+                  onChange={e => { setSearch(e.target.value); setDropdown(true) }}
+                  onFocus={() => search.trim() && setDropdown(true)}
+                  role="combobox"
+                  aria-expanded={showDropdown && filteredModules.length > 0}
+                  aria-haspopup="listbox"
+                  aria-autocomplete="list"
                 />
               </div>
               {showDropdown && filteredModules.length > 0 && (
-                <ul className="absolute z-10 mt-1 w-full bg-white border border-[var(--th-border)] rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                <ul
+                  className="absolute z-50 mt-1 w-full rounded-xl shadow-xl overflow-hidden"
+                  style={{
+                    background: 'var(--th-card)',
+                    border: '1px solid var(--th-border)',
+                    maxHeight: '14rem',
+                    overflowY: 'auto',
+                  }}
+                  role="listbox"
+                  aria-label="Modulvorschläge"
+                >
                   {filteredModules.map(m => (
-                    <li key={m.number}>
-                      <button type="button" className="w-full text-left px-3 py-2 hover:bg-[var(--th-bg)]" onClick={() => selectModule(m)}>
+                    <li key={m.number} role="option" aria-selected={false}>
+                      <button
+                        type="button"
+                        className="w-full text-left px-4 py-3 text-sm transition-colors"
+                        style={{ color: 'var(--th-text)' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--th-card-hover)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = '')}
+                        onClick={() => selectModule(m)}
+                      >
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs th-text-3 shrink-0 w-12">{m.number}</span>
-                          <span className="text-sm th-text flex-1 truncate">{m.name}</span>
-                          <span className="text-xs th-text-3 shrink-0">{m.ects} ECTS</span>
+                          <code className="text-xs font-mono shrink-0 w-12" style={{ color: 'var(--th-text-3)' }}>
+                            {m.number}
+                          </code>
+                          <span className="flex-1 truncate font-medium">{m.name}</span>
+                          <span className="text-xs shrink-0" style={{ color: 'var(--th-text-3)' }}>
+                            {m.ects} ECTS
+                          </span>
                         </div>
-                        <div className="text-xs th-text-3 ml-14">{m.faculty}</div>
+                        <div className="text-xs mt-0.5 ml-14" style={{ color: 'var(--th-text-3)' }}>
+                          {m.faculty}
+                        </div>
                       </button>
                     </li>
                   ))}
                 </ul>
               )}
-              {showDropdown && search.trim().length > 0 && filteredModules.length === 0 && (
-                <div className="absolute z-10 mt-1 w-full bg-white border border-[var(--th-border)] rounded-lg shadow-lg px-3 py-2 text-sm th-text-3">
-                  Kein Modul gefunden – bitte manuell eingeben
+              {showDropdown && search.trim() && filteredModules.length === 0 && (
+                <div
+                  className="absolute z-50 mt-1 w-full rounded-xl px-4 py-3 text-sm"
+                  style={{
+                    background: 'var(--th-card)',
+                    border: '1px solid var(--th-border)',
+                    color: 'var(--th-text-3)',
+                  }}
+                >
+                  Kein Modul gefunden — bitte manuell eingeben
                 </div>
               )}
             </div>
           )}
 
+          {/* Form fields */}
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="block text-sm font-medium th-text-2 mb-1">Modulname *</label>
+              <label htmlFor="mod-name" className="th-label">
+                Modulname <span aria-label="Pflichtfeld">*</span>
+              </label>
               <input
+                id="mod-name"
                 className="th-input"
-                value={form.name} onChange={e => set('name', e.target.value)}
+                value={form.name}
+                onChange={e => set('name', e.target.value)}
                 placeholder="z.B. Einführung in die Betriebswirtschaftslehre"
+                required
+                aria-required="true"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium th-text-2 mb-1">Modulnummer</label>
+              <label htmlFor="mod-number" className="th-label">Modulnummer</label>
               <input
-                className="th-input font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={form.moduleNumber} onChange={e => set('moduleNumber', e.target.value)}
+                id="mod-number"
+                className="th-input font-mono"
+                value={form.moduleNumber}
+                onChange={e => set('moduleNumber', e.target.value)}
                 placeholder="31101"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium th-text-2 mb-1">ECTS</label>
+              <label htmlFor="mod-ects" className="th-label">ECTS</label>
               <input
-                type="number" min={1} max={30}
+                id="mod-ects"
+                type="number"
+                min={1}
+                max={30}
                 className="th-input"
-                value={form.credits} onChange={e => set('credits', parseInt(e.target.value) || 0)}
+                value={form.credits}
+                onChange={e => set('credits', parseInt(e.target.value) || 0)}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium th-text-2 mb-1">Semester</label>
+              <label htmlFor="mod-semester" className="th-label">Semester</label>
               <select
-                className="th-input"
-                value={form.semester} onChange={e => set('semester', e.target.value)}
+                id="mod-semester"
+                className="th-select"
+                value={form.semester}
+                onChange={e => set('semester', e.target.value)}
               >
                 {SEMESTER_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
                 {!SEMESTER_OPTIONS.includes(form.semester) && form.semester && (
@@ -679,17 +921,22 @@ function ModuleForm({ initial, onSave, onCancel }: { initial?: StudyModule; onSa
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium th-text-2 mb-1">Status</label>
+              <label htmlFor="mod-status" className="th-label">Status</label>
               <select
-                className="th-input"
-                value={form.status} onChange={e => set('status', e.target.value as ModuleStatus)}
+                id="mod-status"
+                className="th-select"
+                value={form.status}
+                onChange={e => set('status', e.target.value as ModuleStatus)}
               >
-                {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                {Object.entries(STATUS_LABELS).map(([k, v]) => (
+                  <option key={k} value={k}>{v}</option>
+                ))}
               </select>
             </div>
             <div className="col-span-2">
-              <label className="block text-sm font-medium th-text-2 mb-1">Moodle-Link</label>
+              <label htmlFor="mod-moodle" className="th-label">Moodle-Link</label>
               <input
+                id="mod-moodle"
                 type="url"
                 className="th-input"
                 value={form.moodleUrl ?? ''}
@@ -698,35 +945,59 @@ function ModuleForm({ initial, onSave, onCancel }: { initial?: StudyModule; onSa
               />
             </div>
             <div className="col-span-2">
-              <label className="block text-sm font-medium th-text-2 mb-1">Beschreibung</label>
+              <label htmlFor="mod-desc" className="th-label">Beschreibung</label>
               <textarea
+                id="mod-desc"
                 className="th-input"
-                rows={3} value={form.description || ''} onChange={e => set('description', e.target.value)}
-                placeholder="Kurze Beschreibung des Moduls, Lernziele, Inhalte…"
+                rows={3}
+                value={form.description || ''}
+                onChange={e => set('description', e.target.value)}
+                placeholder="Kurze Beschreibung, Lernziele, Inhalte…"
               />
             </div>
             <div className="col-span-2">
-              <label className="block text-sm font-medium th-text-2 mb-2">Farbe</label>
-              <div className="flex gap-2 flex-wrap">
+              <span className="th-label" id="color-label">Farbe</span>
+              <div
+                className="flex gap-2 flex-wrap mt-2"
+                role="radiogroup"
+                aria-labelledby="color-label"
+              >
                 {MODULE_COLORS.map(c => (
                   <button
-                    key={c} onClick={() => set('color', c)}
-                    className="w-8 h-8 rounded-full border-2 transition-transform hover:scale-110"
-                    style={{ backgroundColor: c, borderColor: form.color === c ? '#1e293b' : 'transparent' }}
+                    key={c}
+                    type="button"
+                    onClick={() => set('color', c)}
+                    className="w-9 h-9 rounded-full transition-transform hover:scale-110 focus-visible:scale-110"
+                    style={{
+                      backgroundColor: c,
+                      outline:      form.color === c ? `3px solid var(--th-border-focus)` : '3px solid transparent',
+                      outlineOffset: '2px',
+                    }}
+                    role="radio"
+                    aria-checked={form.color === c}
+                    aria-label={`Farbe ${c}`}
                   />
                 ))}
               </div>
             </div>
           </div>
         </div>
-        <div className="flex justify-end gap-3 p-6 border-t">
-          <button onClick={onCancel} className="px-4 py-2 text-sm th-text-2 hover:bg-[var(--th-bg-secondary,#f1f5f9)] rounded-lg">Abbrechen</button>
+
+        {/* Modal footer */}
+        <div
+          className="flex justify-end gap-3 px-6 py-4"
+          style={{ borderTop: '1px solid var(--th-border)' }}
+        >
+          <button type="button" onClick={onCancel} className="th-btn th-btn-secondary">
+            Abbrechen
+          </button>
           <button
+            type="button"
             onClick={() => { if (form.name) onSave(form) }}
             disabled={!form.name}
-            className="flex items-center gap-2 px-4 py-2 text-sm th-btn th-btn-primary disabled:opacity-50"
+            className="th-btn th-btn-primary gap-2"
           >
-            <Check size={16} />
+            <Check size={15} aria-hidden="true" />
             {initial ? 'Speichern' : 'Erstellen'}
           </button>
         </div>
@@ -735,16 +1006,16 @@ function ModuleForm({ initial, onSave, onCancel }: { initial?: StudyModule; onSa
   )
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+/* ─── Main Page ──────────────────────────────────────────────────────────── */
 
 export default function ModulePage() {
   const { data, createModule, updateModule, removeModule } = useApp()
-  const [showForm, setShowForm] = useState(false)
-  const [editTarget, setEditTarget] = useState<StudyModule | undefined>()
-  const [filterStatus, setFilterStatus] = useState<ModuleStatus | 'alle'>('alle')
+  const [showForm,      setShowForm]      = useState(false)
+  const [editTarget,    setEditTarget]    = useState<StudyModule | undefined>()
+  const [filterStatus,  setFilterStatus]  = useState<ModuleStatus | 'alle'>('alle')
   const [activeModuleId, setActiveModuleId] = useState<string | null>(null)
 
-  const filtered = data.modules.filter(m => filterStatus === 'alle' || m.status === filterStatus)
+  const filtered     = data.modules.filter(m => filterStatus === 'alle' || m.status === filterStatus)
   const activeModule = activeModuleId ? data.modules.find(m => m.id === activeModuleId) : null
 
   const handleSave = (form: FormData) => {
@@ -757,15 +1028,14 @@ export default function ModulePage() {
     setEditTarget(undefined)
   }
 
-  const handleEdit = (m: StudyModule) => { setEditTarget(m); setShowForm(true) }
+  const handleEdit   = (m: StudyModule) => { setEditTarget(m); setShowForm(true) }
   const handleDelete = (id: string) => {
-    if (confirm('Modul und alle zugehörigen Daten löschen?')) {
+    if (confirm('Modul und alle zugehörigen Daten unwiderruflich löschen?')) {
       removeModule(id)
       if (activeModuleId === id) setActiveModuleId(null)
     }
   }
 
-  // Show detail view
   if (activeModule) {
     return (
       <ModuleDetail
@@ -778,42 +1048,65 @@ export default function ModulePage() {
   }
 
   return (
-    <div className="p-4 md:p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-5 md:p-8">
+      {/* Page header */}
+      <div className="flex items-start justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold th-text">Meine Module</h1>
-          <p className="text-sm th-text-2 mt-1">{data.modules.length} Module gesamt</p>
+          <h1 className="th-page-title">Meine Module</h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--th-text-2)' }}>
+            {data.modules.length} Module gesamt
+          </p>
         </div>
         <button
+          type="button"
           onClick={() => { setEditTarget(undefined); setShowForm(true) }}
-          className="flex items-center gap-2 px-4 py-2 th-btn th-btn-primary transition-colors text-sm font-medium"
+          className="th-btn th-btn-primary shrink-0 gap-2"
         >
-          <Plus size={16} /> Neues Modul
+          <Plus size={16} aria-hidden="true" />
+          Neues Modul
         </button>
       </div>
 
-      {/* Filter */}
-      <div className="flex gap-2 mb-6 flex-wrap">
+      {/* Status filter */}
+      <div
+        className="flex gap-2 mb-6 flex-wrap"
+        role="group"
+        aria-label="Nach Status filtern"
+      >
         {(['alle', ...Object.keys(STATUS_LABELS)] as const).map(status => (
           <button
             key={status}
+            type="button"
             onClick={() => setFilterStatus(status as ModuleStatus | 'alle')}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              filterStatus === status
-                ? 'th-btn th-btn-primary'
-                : 'bg-[var(--th-bg-secondary,#f1f5f9)] th-text-2 hover:bg-slate-200'
+            className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+              filterStatus === status ? 'th-btn th-btn-primary' : 'th-btn th-btn-secondary'
             }`}
+            style={{ minHeight: 'auto' }}
+            aria-pressed={filterStatus === status}
           >
             {status === 'alle' ? 'Alle' : STATUS_LABELS[status as ModuleStatus]}
           </button>
         ))}
       </div>
 
+      {/* Empty state */}
       {filtered.length === 0 ? (
-        <div className="text-center py-20 th-text-3">
-          <BookOpen size={48} className="mx-auto mb-4 opacity-30" />
-          <p className="text-lg font-medium">Keine Module gefunden</p>
-          <p className="text-sm mt-1">Klicke auf "Neues Modul" um zu beginnen.</p>
+        <div
+          className="flex flex-col items-center justify-center text-center py-24"
+          style={{ color: 'var(--th-text-3)' }}
+        >
+          <div
+            className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
+            style={{ background: 'var(--th-bg-secondary)' }}
+          >
+            <BookOpen size={32} aria-hidden="true" style={{ opacity: 0.4 }} />
+          </div>
+          <p className="text-base font-semibold" style={{ color: 'var(--th-text-2)' }}>
+            Keine Module gefunden
+          </p>
+          <p className="text-sm mt-1">
+            Klicke auf „Neues Modul" um zu beginnen.
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
