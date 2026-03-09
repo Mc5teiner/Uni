@@ -48,7 +48,7 @@ function PDFThumbnail({ fileData }: { fileData: string }) {
   }, [fileData])
 
   return (
-    <div className="w-full bg-slate-100 rounded-lg overflow-hidden flex items-center justify-center" style={{ aspectRatio: '3/4' }}>
+    <div className="w-full bg-[var(--th-bg-secondary,#f1f5f9)] rounded-lg overflow-hidden flex items-center justify-center" style={{ aspectRatio: '3/4' }}>
       {!loaded && <FileText size={28} className="text-slate-300" />}
       <canvas
         ref={canvasRef}
@@ -74,24 +74,24 @@ function DocEditForm({ doc, modules, onSave, onCancel }: DocEditFormProps) {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+      <div className="th-card shadow-2xl w-full max-w-md">
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-lg font-semibold">Studienbrief bearbeiten</h2>
-          <button onClick={onCancel} className="p-1 rounded hover:bg-slate-100"><X size={20} /></button>
+          <button onClick={onCancel} className="p-1 rounded hover:bg-[var(--th-bg-secondary,#f1f5f9)]"><X size={20} /></button>
         </div>
         <div className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Name</label>
+            <label className="block text-sm font-medium th-text-2 mb-1">Name</label>
             <input
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="th-input"
               value={name}
               onChange={e => setName(e.target.value)}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Semester</label>
+            <label className="block text-sm font-medium th-text-2 mb-1">Semester</label>
             <select
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="th-input"
               value={semester}
               onChange={e => setSemester(e.target.value)}
             >
@@ -102,9 +102,9 @@ function DocEditForm({ doc, modules, onSave, onCancel }: DocEditFormProps) {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Modul</label>
+            <label className="block text-sm font-medium th-text-2 mb-1">Modul</label>
             <select
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="th-input"
               value={moduleId}
               onChange={e => setModuleId(e.target.value)}
             >
@@ -116,13 +116,13 @@ function DocEditForm({ doc, modules, onSave, onCancel }: DocEditFormProps) {
           </div>
         </div>
         <div className="flex justify-end gap-3 p-6 border-t">
-          <button onClick={onCancel} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+          <button onClick={onCancel} className="px-4 py-2 text-sm th-text-2 hover:bg-[var(--th-bg-secondary,#f1f5f9)] rounded-lg transition-colors">
             Abbrechen
           </button>
           <button
             onClick={() => onSave({ ...doc, name: name.trim() || doc.name, semester, moduleId })}
             disabled={!name.trim()}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 text-sm th-btn th-btn-primary transition-colors disabled:opacity-50"
           >
             <Check size={16} /> Speichern
           </button>
@@ -278,19 +278,19 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
   return (
     <div className="flex h-full">
       {/* Sidebar: bookmarks + notes */}
-      <div className="w-64 bg-white border-r border-slate-200 flex flex-col flex-shrink-0 overflow-hidden">
-        <div className="p-3 border-b bg-slate-50">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Lesezeichen</div>
+      <div className="w-64 bg-white border-r border-[var(--th-border)] flex flex-col flex-shrink-0 overflow-hidden">
+        <div className="p-3 border-b bg-[var(--th-bg)]">
+          <div className="text-xs font-semibold th-text-2 uppercase tracking-wide mb-2">Lesezeichen</div>
           <div className="space-y-1 max-h-48 overflow-y-auto">
             {doc.bookmarks.length === 0 ? (
-              <div className="text-xs text-slate-400 text-center py-2">Noch keine Lesezeichen</div>
+              <div className="text-xs th-text-3 text-center py-2">Noch keine Lesezeichen</div>
             ) : doc.bookmarks.map(bm => (
               <div key={bm.id} className="flex items-center gap-1 group">
                 <button
                   onClick={() => goToPage(bm.page)}
-                  className="flex-1 text-left text-xs py-1 px-2 rounded hover:bg-blue-50 text-slate-700"
+                  className="flex-1 text-left text-xs py-1 px-2 rounded hover:bg-blue-50 th-text-2"
                 >
-                  <span className="font-mono text-slate-400 mr-1">S.{bm.page}</span>
+                  <span className="font-mono th-text-3 mr-1">S.{bm.page}</span>
                   {bm.label}
                 </button>
                 <button onClick={() => removeBookmark(bm.id)} className="opacity-0 group-hover:opacity-100 p-0.5 text-red-400 hover:text-red-600">
@@ -309,7 +309,7 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
             <div className="mt-2 flex gap-1">
               <input
                 autoFocus
-                className="flex-1 text-xs border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="flex-1 text-xs border border-[var(--th-border)] rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 placeholder="Bezeichnung..."
                 value={bookmarkLabel}
                 onChange={e => setBookmarkLabel(e.target.value)}
@@ -321,14 +321,14 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
         </div>
 
         <div className="p-3 flex-1 overflow-y-auto">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Notizen – Seite {page}</div>
+          <div className="text-xs font-semibold th-text-2 uppercase tracking-wide mb-2">Notizen – Seite {page}</div>
           <div className="space-y-2">
             {pageNotes.length === 0 ? (
-              <div className="text-xs text-slate-400 text-center py-2">Keine Notizen für diese Seite</div>
+              <div className="text-xs th-text-3 text-center py-2">Keine Notizen für diese Seite</div>
             ) : pageNotes.map(note => (
-              <div key={note.id} className="bg-yellow-50 border border-yellow-200 rounded p-2 text-xs text-slate-700">
+              <div key={note.id} className="bg-yellow-50 border border-yellow-200 rounded p-2 text-xs th-text-2">
                 {note.text}
-                <div className="text-slate-400 mt-1">{format(new Date(note.createdAt), 'dd.MM.yyyy HH:mm')}</div>
+                <div className="th-text-3 mt-1">{format(new Date(note.createdAt), 'dd.MM.yyyy HH:mm')}</div>
               </div>
             ))}
           </div>
@@ -342,7 +342,7 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
             <div className="mt-2">
               <textarea
                 autoFocus
-                className="w-full text-xs border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full text-xs border border-[var(--th-border)] rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 rows={3} placeholder="Notiz..."
                 value={noteText} onChange={e => setNoteText(e.target.value)}
               />
@@ -372,7 +372,7 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
           </button>
           <div className="w-px h-5 bg-slate-600" />
           <button onClick={() => setScale(s => Math.min(3, +(s + 0.2).toFixed(1)))} className="p-1 rounded hover:bg-slate-600"><ZoomIn size={18} /></button>
-          <span className="text-xs text-slate-400 w-10 text-center">{Math.round(scale * 100)}%</span>
+          <span className="text-xs th-text-3 w-10 text-center">{Math.round(scale * 100)}%</span>
           <button onClick={() => setScale(s => Math.max(0.5, +(s - 0.2).toFixed(1)))} className="p-1 rounded hover:bg-slate-600"><ZoomOut size={18} /></button>
           <div className="w-px h-5 bg-slate-600" />
           <button
@@ -386,7 +386,7 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
             <StickyNote size={18} />
           </button>
           <div className="flex-1" />
-          <div className="text-xs text-slate-400 bg-slate-700 px-2 py-1 rounded">
+          <div className="text-xs th-text-3 bg-slate-700 px-2 py-1 rounded">
             {Math.round((page / totalPages) * 100)}% gelesen
           </div>
         </div>
@@ -410,7 +410,7 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
         </div>
 
         {/* Page turn hint */}
-        <div className="bg-slate-800/60 text-center text-xs text-slate-500 py-1 flex-shrink-0">
+        <div className="bg-slate-800/60 text-center text-xs th-text-2 py-1 flex-shrink-0">
           ← → oder Mausrad am Seitenrand zum Blättern
         </div>
       </div>
@@ -467,22 +467,22 @@ export default function DokumentePage() {
     const module = data.modules.find(m => m.id === current.moduleId)
     return (
       <div className="flex flex-col h-screen">
-        <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-200 flex-shrink-0">
-          <button onClick={() => setActiveDoc(null)} className="flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900">
+        <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-[var(--th-border)] flex-shrink-0">
+          <button onClick={() => setActiveDoc(null)} className="flex items-center gap-1 text-sm th-text-2 hover:text-slate-900">
             <ArrowLeft size={16} /> Zurück
           </button>
           <div className="w-px h-5 bg-slate-200" />
-          <span className="text-sm font-medium text-slate-800">{current.name}</span>
+          <span className="text-sm font-medium th-text">{current.name}</span>
           {module && (
             <span className="text-xs px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: module.color }}>
               {module.moduleNumber}
             </span>
           )}
           {current.semester && (
-            <span className="text-xs text-slate-400">{current.semester}</span>
+            <span className="text-xs th-text-3">{current.semester}</span>
           )}
           {current.lastReadAt && (
-            <span className="text-xs text-slate-400 ml-auto">
+            <span className="text-xs th-text-3 ml-auto">
               Zuletzt: {format(new Date(current.lastReadAt), 'dd.MM. HH:mm', { locale: de })}
             </span>
           )}
@@ -498,12 +498,12 @@ export default function DokumentePage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Studienbriefe</h1>
-          <p className="text-sm text-slate-500 mt-1">{data.documents.length} Dokumente</p>
+          <h1 className="text-2xl font-bold th-text">Studienbriefe</h1>
+          <p className="text-sm th-text-2 mt-1">{data.documents.length} Dokumente</p>
         </div>
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="flex items-center gap-2 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition-colors text-sm font-medium"
+          className="flex items-center gap-2 px-4 py-2 th-btn th-btn-primary transition-colors text-sm font-medium"
         >
           <Upload size={16} /> PDF hochladen
         </button>
@@ -514,13 +514,13 @@ export default function DokumentePage() {
       <div className="flex gap-2 mb-6 flex-wrap">
         <button
           onClick={() => setFilterModuleId('alle')}
-          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${filterModuleId === 'alle' ? 'bg-[#003366] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${filterModuleId === 'alle' ? 'th-btn th-btn-primary' : 'bg-[var(--th-bg-secondary,#f1f5f9)] th-text-2 hover:bg-slate-200'}`}
         >Alle Module</button>
         {data.modules.map(m => (
           <button
             key={m.id}
             onClick={() => setFilterModuleId(m.id)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${filterModuleId === m.id ? 'text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${filterModuleId === m.id ? 'text-white' : 'bg-[var(--th-bg-secondary,#f1f5f9)] th-text-2 hover:bg-slate-200'}`}
             style={filterModuleId === m.id ? { backgroundColor: m.color } : {}}
           >
             {m.moduleNumber} {m.name}
@@ -529,7 +529,7 @@ export default function DokumentePage() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="text-center py-20 text-slate-400">
+        <div className="text-center py-20 th-text-3">
           <FileText size={48} className="mx-auto mb-4 opacity-30" />
           <p className="text-lg font-medium">Keine Studienbriefe</p>
           <p className="text-sm mt-1">Lade deine PDFs hoch um zu beginnen.</p>
@@ -540,7 +540,7 @@ export default function DokumentePage() {
             const module = data.modules.find(m => m.id === doc.moduleId)
             const progress = doc.totalPages > 0 ? Math.round((doc.currentPage / doc.totalPages) * 100) : 0
             return (
-              <div key={doc.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+              <div key={doc.id} className="th-card overflow-hidden hover:shadow-md transition-shadow flex flex-col">
                 {/* Color stripe */}
                 {module && <div className="h-1.5 flex-shrink-0" style={{ backgroundColor: module.color }} />}
 
@@ -552,18 +552,18 @@ export default function DokumentePage() {
                 {/* Info */}
                 <div className="p-3 flex-1 flex flex-col">
                   <div className="flex items-start justify-between gap-1 mb-1">
-                    <h3 className="font-medium text-slate-800 text-sm line-clamp-2 flex-1 leading-snug">{doc.name}</h3>
+                    <h3 className="font-medium th-text text-sm line-clamp-2 flex-1 leading-snug">{doc.name}</h3>
                     <div className="flex gap-0.5 shrink-0 ml-1">
                       <button
                         onClick={() => setEditingDoc(doc)}
-                        className="p-1 text-slate-400 hover:text-slate-700 transition-colors"
+                        className="p-1 th-text-3 hover:th-text-2 transition-colors"
                         title="Bearbeiten"
                       >
                         <Pencil size={13} />
                       </button>
                       <button
                         onClick={() => { if (confirm('Dokument löschen?')) removeDocument(doc.id) }}
-                        className="p-1 text-slate-400 hover:text-red-600 transition-colors"
+                        className="p-1 th-text-3 hover:text-red-600 transition-colors"
                         title="Löschen"
                       >
                         <Trash2 size={13} />
@@ -579,22 +579,22 @@ export default function DokumentePage() {
                       </span>
                     )}
                     {doc.semester && (
-                      <span className="text-xs text-slate-400">{doc.semester}</span>
+                      <span className="text-xs th-text-3">{doc.semester}</span>
                     )}
                   </div>
 
                   {/* Progress bar */}
                   <div className="mb-2">
-                    <div className="flex justify-between text-xs text-slate-400 mb-0.5">
+                    <div className="flex justify-between text-xs th-text-3 mb-0.5">
                       <span>S. {doc.currentPage}/{doc.totalPages || '?'}</span>
                       <span>{progress}%</span>
                     </div>
-                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-[var(--th-bg-secondary,#f1f5f9)] rounded-full overflow-hidden">
                       <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${progress}%` }} />
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between text-xs text-slate-400 mb-3">
+                  <div className="flex items-center justify-between text-xs th-text-3 mb-3">
                     <span>{doc.bookmarks.length} LZ</span>
                     <span>{doc.notes.length} Notizen</span>
                     {doc.lastReadAt && <span>{format(new Date(doc.lastReadAt), 'dd.MM.', { locale: de })}</span>}

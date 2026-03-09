@@ -1,0 +1,30 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fernuni-study-organizer
+    restart: unless-stopped
+    ports:
+      - "3000:3000"          # Change left-side port to run on a different host port
+    volumes:
+      - study_data:/data     # Persistent SQLite DB + auto-generated secrets
+    environment:
+      NODE_ENV: production
+      DATA_DIR: /data
+      PORT: "3000"
+      # Optional: set explicitly to override auto-generated secrets
+      # JWT_SECRET: "your-256bit-hex-secret-here"
+      # ENCRYPTION_SECRET: "your-256bit-hex-secret-here"
+      # TRUST_PROXY: "true"   # Enable if behind a reverse proxy (nginx, Traefik, etc.)
+      # ALLOWED_ORIGIN: "https://study.example.com"  # Enable CORS for separate frontend
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/auth/check-setup"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  study_data:
+    driver: local
