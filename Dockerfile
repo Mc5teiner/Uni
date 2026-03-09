@@ -1,5 +1,5 @@
 # ─── Stage 1: Build frontend ─────────────────────────────────────────────────
-FROM node:22-slim AS frontend-builder
+FROM node:22-bookworm-slim as frontend-builder
 
 WORKDIR /app/study-tool
 COPY study-tool/package*.json ./
