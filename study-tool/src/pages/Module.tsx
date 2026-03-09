@@ -677,36 +677,35 @@ function ModuleCard({
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-between">
-          <span className="text-xs" style={{ color: 'var(--th-text-3)' }}>
-            {stats.weekMinutes} min diese Woche
-          </span>
-          <div
-            className="flex gap-1"
-            onClick={e => e.stopPropagation()}
-            onKeyDown={e => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => onEdit(module)}
-              className="th-icon-btn"
-              aria-label={`Modul "${module.name}" bearbeiten`}
-            >
-              <Pencil size={14} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              onClick={() => onDelete(module.id)}
-              className="th-icon-btn"
-              style={{ color: 'var(--th-text-3)' }}
-              aria-label={`Modul "${module.name}" löschen`}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.08)'; e.currentTarget.style.color = 'var(--th-danger)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.color = 'var(--th-text-3)' }}
-            >
-              <Trash2 size={14} aria-hidden="true" />
-            </button>
-          </div>
+        <div className="text-xs mb-1" style={{ color: 'var(--th-text-3)' }}>
+          {stats.weekMinutes} min diese Woche
         </div>
+      </div>
+
+      {/* Touch-friendly action bar */}
+      <div
+        className="th-card-actions"
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={() => onEdit(module)}
+          className="th-card-action-btn th-card-action-edit"
+          aria-label={`Modul "${module.name}" bearbeiten`}
+        >
+          <Pencil size={15} aria-hidden="true" />
+          Bearbeiten
+        </button>
+        <button
+          type="button"
+          onClick={() => onDelete(module.id)}
+          className="th-card-action-btn th-card-action-delete"
+          aria-label={`Modul "${module.name}" löschen`}
+        >
+          <Trash2 size={15} aria-hidden="true" />
+          Löschen
+        </button>
       </div>
     </article>
   )

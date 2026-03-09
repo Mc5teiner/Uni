@@ -551,25 +551,7 @@ export default function DokumentePage() {
 
                 {/* Info */}
                 <div className="p-3 flex-1 flex flex-col">
-                  <div className="flex items-start justify-between gap-1 mb-1">
-                    <h3 className="font-medium th-text text-sm line-clamp-2 flex-1 leading-snug">{doc.name}</h3>
-                    <div className="flex gap-0.5 shrink-0 ml-1">
-                      <button
-                        onClick={() => setEditingDoc(doc)}
-                        className="p-1 th-text-3 hover:th-text-2 transition-colors"
-                        title="Bearbeiten"
-                      >
-                        <Pencil size={13} />
-                      </button>
-                      <button
-                        onClick={() => { if (confirm('Dokument löschen?')) removeDocument(doc.id) }}
-                        className="p-1 th-text-3 hover:text-red-600 transition-colors"
-                        title="Löschen"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </div>
+                  <h3 className="font-medium th-text text-sm line-clamp-2 leading-snug mb-2">{doc.name}</h3>
 
                   {/* Module + semester */}
                   <div className="flex items-center gap-1 flex-wrap mb-2">
@@ -602,9 +584,30 @@ export default function DokumentePage() {
 
                   <button
                     onClick={() => setActiveDoc(doc)}
-                    className="mt-auto w-full py-1.5 bg-slate-800 text-white text-xs rounded-lg hover:bg-slate-700 transition-colors font-medium"
+                    className="mt-auto w-full th-btn th-btn-primary text-xs"
+                    style={{ minHeight: '2.5rem' }}
                   >
                     Öffnen & Lesen
+                  </button>
+                </div>
+
+                {/* Touch-friendly action bar */}
+                <div className="th-card-actions">
+                  <button
+                    onClick={() => setEditingDoc(doc)}
+                    className="th-card-action-btn th-card-action-edit"
+                    aria-label={`"${doc.name}" bearbeiten`}
+                  >
+                    <Pencil size={15} aria-hidden="true" />
+                    Bearbeiten
+                  </button>
+                  <button
+                    onClick={() => { if (confirm('Dokument löschen?')) removeDocument(doc.id) }}
+                    className="th-card-action-btn th-card-action-delete"
+                    aria-label={`"${doc.name}" löschen`}
+                  >
+                    <Trash2 size={15} aria-hidden="true" />
+                    Löschen
                   </button>
                 </div>
               </div>

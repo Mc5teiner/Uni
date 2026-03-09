@@ -529,18 +529,25 @@ export default function KarteikartenPage() {
                   </span>
                   <span className="text-xs text-slate-300">|</span>
                   <span className="text-xs th-text-3">∅ {card.interval}d</span>
-                  <button
-                    onClick={e => { e.stopPropagation(); setEditCard(card); setShowForm(true) }}
-                    className="p-1.5 th-text-3 hover:th-text-2"
-                  >
-                    <Pencil size={14} />
-                  </button>
-                  <button
-                    onClick={e => { e.stopPropagation(); if (confirm('Karte löschen?')) removeFlashcard(card.id) }}
-                    className="p-1.5 th-text-3 hover:text-red-600"
-                  >
-                    <X size={14} />
-                  </button>
+                  {/* Touch-friendly action buttons */}
+                  <div className="flex gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+                    <button
+                      onClick={e => { e.stopPropagation(); setEditCard(card); setShowForm(true) }}
+                      className="th-card-action-btn th-card-action-edit"
+                      style={{ flex: 'none', minWidth: '44px', padding: '0 12px' }}
+                      aria-label="Karte bearbeiten"
+                    >
+                      <Pencil size={15} aria-hidden="true" />
+                    </button>
+                    <button
+                      onClick={e => { e.stopPropagation(); if (confirm('Karte löschen?')) removeFlashcard(card.id) }}
+                      className="th-card-action-btn th-card-action-delete"
+                      style={{ flex: 'none', minWidth: '44px', padding: '0 12px' }}
+                      aria-label="Karte löschen"
+                    >
+                      <X size={15} aria-hidden="true" />
+                    </button>
+                  </div>
                 </div>
               </div>
             )
