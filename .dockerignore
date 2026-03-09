@@ -5,7 +5,6 @@
 **/*.log
 **/.env
 **/.env.*
-**/data
 server/data
 **/*.md
 study-tool/public
