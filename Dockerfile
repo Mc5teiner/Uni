@@ -1,5 +1,5 @@
 # ─── Stage 1: Build frontend ─────────────────────────────────────────────────
-FROM node:22-alpine AS frontend-builder
+FROM node:22-slim AS frontend-builder
 
 WORKDIR /app/study-tool
 COPY study-tool/package*.json ./
@@ -9,7 +9,7 @@ COPY study-tool/ ./
 RUN npm run build
 
 # ─── Stage 2: Build backend ───────────────────────────────────────────────────
-FROM node:22-alpine AS backend-builder
+FROM node:22-slim AS backend-builder
 
 WORKDIR /app/server
 COPY server/package*.json ./
@@ -20,7 +20,7 @@ COPY server/ ./
 RUN npm run build
 
 # ─── Stage 3: Production image ────────────────────────────────────────────────
-FROM node:22-alpine AS production
+FROM node:22-slim AS production
 
 # Security: run as non-root user
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
