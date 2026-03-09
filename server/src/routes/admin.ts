@@ -263,6 +263,124 @@ router.get('/users/:id/data', (req, res) => {
   res.json(grouped)
 })
 
+// ─── Backup ───────────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/admin/backup
+ * Downloads a full JSON backup of:
+ *   - app_settings
+ *   - all users (without password hashes / refresh tokens)
+ *   - all user data (all namespaces, full blobs — including PDFs as base64)
+ *   - caldav_settings (passwords stay AES-encrypted in the export)
+ *
+ * The result is streamed as a single JSON file so it can be restored via
+ * POST /api/admin/restore or simply piped to a file on a Synology NAS.
+ */
+router.get('/backup', (req, res) => {
+  try {
+    const users   = db.prepare('SELECT * FROM users ORDER BY created_at ASC').all() as User[]
+    const settings = db.prepare('SELECT * FROM app_settings').all()
+    const userData = db.prepare('SELECT * FROM user_data ORDER BY user_id, namespace, item_id').all()
+    const caldav   = db.prepare('SELECT user_id, server_url, username, calendar_url, encrypted_password FROM caldav_settings').all()
+    const auditRows = db.prepare('SELECT * FROM audit_log ORDER BY created_at DESC LIMIT 10000').all()
+
+    const backup = {
+      version:   2,
+      createdAt: new Date().toISOString(),
+      createdBy: (req as AuthenticatedRequest).user.usr,
+      users: users.map(u => ({
+        id:            u.id,
+        username:      u.username,
+        email:         u.email,
+        name:          u.name,
+        study_type:    u.study_type,
+        study_program: u.study_program,
+        role:          u.role,
+        storage_limit: u.storage_limit,
+        is_banned:     u.is_banned,
+        created_at:    u.created_at,
+        // password_hash intentionally EXCLUDED from export for security
+      })),
+      settings,
+      caldavSettings: caldav,
+      userData,
+      auditLog: auditRows,
+    }
+
+    const json = JSON.stringify(backup, null, 2)
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-')
+
+    res.setHeader('Content-Type', 'application/json')
+    res.setHeader('Content-Disposition', `attachment; filename="study-organizer-backup-${timestamp}.json"`)
+    res.setHeader('Content-Length', Buffer.byteLength(json, 'utf8'))
+    auditLog((req as AuthenticatedRequest).user.sub, 'admin.backup_created', {
+      ip: ip(req), details: {
+        users: users.length, userDataRows: (userData as unknown[]).length,
+      },
+    })
+    res.send(json)
+  } catch (err) {
+    res.status(500).json({ error: 'Backup fehlgeschlagen: ' + (err as Error).message })
+  }
+})
+
+/**
+ * GET /api/admin/backup/users
+ * Lightweight export of user accounts only (for auditing / migration).
+ */
+router.get('/backup/users', (_req, res) => {
+  const users = db.prepare('SELECT * FROM users ORDER BY created_at ASC').all() as User[]
+  const storageMap = new Map(getAllUsersStorage().map(s => [s.userId, s.bytes]))
+  const data = users.map(u => ({
+    ...publicUser(u, storageMap.get(u.id) ?? 0),
+    // password_hash NOT included
+  }))
+  const json = JSON.stringify({ version: 1, createdAt: new Date().toISOString(), users: data }, null, 2)
+  const ts = new Date().toISOString().slice(0, 10)
+  res.setHeader('Content-Type', 'application/json')
+  res.setHeader('Content-Disposition', `attachment; filename="users-backup-${ts}.json"`)
+  res.send(json)
+})
+
+/**
+ * GET /api/admin/backup/settings
+ * Export of all app_settings only.
+ * smtp_pass stays AES-encrypted in the export.
+ */
+router.get('/backup/settings', (_req, res) => {
+  const settings = db.prepare('SELECT * FROM app_settings').all()
+  const json = JSON.stringify({ version: 1, createdAt: new Date().toISOString(), settings }, null, 2)
+  const ts = new Date().toISOString().slice(0, 10)
+  res.setHeader('Content-Type', 'application/json')
+  res.setHeader('Content-Disposition', `attachment; filename="settings-backup-${ts}.json"`)
+  res.send(json)
+})
+
+/**
+ * GET /api/admin/backup/user/:id
+ * Full data export for a single user (all namespaces + all blobs).
+ */
+router.get('/backup/user/:id', (req, res) => {
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id) as User | undefined
+  if (!user) { res.status(404).json({ error: 'Benutzer nicht gefunden' }); return }
+
+  const userData = db.prepare(
+    'SELECT namespace, item_id, data, created_at, updated_at FROM user_data WHERE user_id = ? ORDER BY namespace, item_id'
+  ).all(req.params.id)
+
+  const json = JSON.stringify({
+    version: 1,
+    createdAt: new Date().toISOString(),
+    user: publicUser(user, getUserStorageBytes(user.id)),
+    data: userData,
+  }, null, 2)
+
+  const ts = new Date().toISOString().slice(0, 10)
+  res.setHeader('Content-Type', 'application/json')
+  res.setHeader('Content-Disposition', `attachment; filename="user-${user.username}-backup-${ts}.json"`)
+  res.send(json)
+})
+
 // ─── Audit log ────────────────────────────────────────────────────────────────
 
 router.get('/audit', (req, res) => {

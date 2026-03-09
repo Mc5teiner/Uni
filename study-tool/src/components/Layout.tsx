@@ -15,8 +15,8 @@ const navItems = [
 ]
 
 const STUDY_TYPE_LABEL: Record<string, string> = {
-  bachelor:  'B.Sc. / B.A.',
-  master:    'M.Sc. / M.A.',
+  bachelor:   'B.Sc. / B.A.',
+  master:     'M.Sc. / M.A.',
   zertifikat: 'Zertifikat',
 }
 
@@ -30,26 +30,30 @@ export default function Layout() {
   }
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
+    <div className="flex h-screen overflow-hidden th-bg">
       {/* Sidebar */}
-      <aside className="w-64 bg-[#003366] text-white flex flex-col flex-shrink-0">
+      <aside className="th-sidebar w-64 flex flex-col flex-shrink-0">
         {/* Logo */}
-        <div className="p-5 border-b border-blue-800">
-          <div className="text-xs font-semibold text-blue-300 uppercase tracking-widest mb-1">FernUniversität</div>
-          <h1 className="text-xl font-bold leading-tight">Study Organizer</h1>
-          <div className="text-xs text-blue-300 mt-1">Hagen</div>
+        <div className="p-5" style={{ borderBottom: '1px solid var(--th-sidebar-border, rgba(255,255,255,0.12))' }}>
+          <div className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--th-sidebar-muted)' }}>
+            FernUniversität
+          </div>
+          <h1 className="text-xl font-bold leading-tight" style={{ color: 'var(--th-sidebar-text)' }}>
+            Study Organizer
+          </h1>
+          <div className="text-xs mt-1" style={{ color: 'var(--th-sidebar-muted)' }}>Hagen</div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto scrollbar-thin">
           {navItems.map(({ to, icon: Icon, label, end }) => (
             <NavLink
               key={to}
               to={to}
               end={end}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive ? 'bg-white/20 text-white' : 'text-blue-200 hover:bg-white/10 hover:text-white'
+                `th-nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium ${
+                  isActive ? 'th-nav-item-active' : ''
                 }`
               }
             >
@@ -58,13 +62,12 @@ export default function Layout() {
             </NavLink>
           ))}
 
-          {/* Admin link — only for admins */}
           {user?.role === 'admin' && (
             <NavLink
               to="/admin"
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive ? 'bg-white/20 text-white' : 'text-blue-200 hover:bg-white/10 hover:text-white'
+                `th-nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium ${
+                  isActive ? 'th-nav-item-active' : ''
                 }`
               }
             >
@@ -75,16 +78,21 @@ export default function Layout() {
         </nav>
 
         {/* User info + logout */}
-        <div className="p-4 border-t border-blue-800">
+        <div className="p-4" style={{ borderTop: '1px solid var(--th-sidebar-border, rgba(255,255,255,0.12))' }}>
           {user && (
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
+                style={{ background: 'var(--th-nav-active-bg)', color: 'var(--th-nav-active-text)' }}
+              >
                 <User size={14} />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium text-white truncate">{user.name || user.username}</div>
+                <div className="text-xs font-medium truncate" style={{ color: 'var(--th-sidebar-text)' }}>
+                  {user.name || user.username}
+                </div>
                 {(user.studyType || user.studyProgram) && (
-                  <div className="text-[10px] text-blue-300 truncate">
+                  <div className="text-[10px] truncate" style={{ color: 'var(--th-sidebar-muted)' }}>
                     {[STUDY_TYPE_LABEL[user.studyType ?? ''] ?? user.studyType, user.studyProgram]
                       .filter(Boolean).join(' · ')}
                   </div>
@@ -94,7 +102,7 @@ export default function Layout() {
           )}
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-blue-300 hover:bg-white/10 hover:text-white transition-colors"
+            className="th-nav-item w-full flex items-center gap-2 px-3 py-2 text-xs"
           >
             <LogOut size={14} />
             Abmelden
@@ -103,7 +111,7 @@ export default function Layout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto th-bg">
         <Outlet />
       </main>
     </div>

@@ -41,20 +41,20 @@ export default function SetupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[var(--th-bg)] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">FernUniversität Hagen</div>
+          <div className="text-xs font-semibold th-text-3 uppercase tracking-widest mb-1">FernUniversität Hagen</div>
           <h1 className="text-2xl font-bold text-[#003366]">Study Organizer</h1>
-          <p className="text-sm text-slate-500 mt-2">Ersteinrichtung</p>
+          <p className="text-sm th-text-2 mt-2">Ersteinrichtung</p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div className="th-card shadow-sm p-6">
           <div className="flex items-center gap-2 mb-2">
             <ShieldCheck size={20} className="text-[#003366]" />
-            <h2 className="text-lg font-semibold text-slate-800">Administrator anlegen</h2>
+            <h2 className="text-lg font-semibold th-text">Administrator anlegen</h2>
           </div>
-          <p className="text-sm text-slate-500 mb-5">
+          <p className="text-sm th-text-2 mb-5">
             Erstelle das erste Admin-Konto. Danach können weitere Benutzer über die Admin-Konsole angelegt werden.
           </p>
 
@@ -66,48 +66,48 @@ export default function SetupPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Vollständiger Name</label>
-              <input required className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]"
+              <label className="block text-sm font-medium th-text-2 mb-1">Vollständiger Name</label>
+              <input required className="th-input"
                 placeholder="Max Mustermann" value={form.name} onChange={set('name')} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Benutzername</label>
+                <label className="block text-sm font-medium th-text-2 mb-1">Benutzername</label>
                 <input required pattern="[a-zA-Z0-9_.\-]+" minLength={3} maxLength={32}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                  className="th-input"
                   placeholder="admin" value={form.username} onChange={set('username')} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">E-Mail</label>
+                <label className="block text-sm font-medium th-text-2 mb-1">E-Mail</label>
                 <input required type="email"
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                  className="th-input"
                   placeholder="admin@example.com" value={form.email} onChange={set('email')} />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Passwort <span className="text-slate-400 font-normal">(min. 12 Zeichen)</span>
+              <label className="block text-sm font-medium th-text-2 mb-1">
+                Passwort <span className="th-text-3 font-normal">(min. 12 Zeichen)</span>
               </label>
               <div className="relative">
                 <input required type={showPw ? 'text' : 'password'} minLength={12} maxLength={128}
                   autoComplete="new-password"
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                  className="w-full border border-[var(--th-border)] rounded-lg px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]"
                   placeholder="••••••••••••" value={form.password} onChange={set('password')} />
                 <button type="button" tabIndex={-1} onClick={() => setShowPw(v => !v)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 th-text-3 hover:th-text-2">
                   {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Passwort bestätigen</label>
+              <label className="block text-sm font-medium th-text-2 mb-1">Passwort bestätigen</label>
               <input required type="password" maxLength={128} autoComplete="new-password"
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                className="th-input"
                 placeholder="••••••••••••" value={form.confirmPassword} onChange={set('confirmPassword')} />
             </div>
 
             <button type="submit" disabled={loading}
-              className="w-full py-2.5 bg-[#003366] text-white rounded-lg hover:bg-[#004488] font-medium text-sm disabled:opacity-60">
+              className="w-full py-2.5 th-btn th-btn-primary font-medium text-sm disabled:opacity-60">
               {loading ? 'Einrichten…' : 'Admin-Konto erstellen & einloggen'}
             </button>
           </form>

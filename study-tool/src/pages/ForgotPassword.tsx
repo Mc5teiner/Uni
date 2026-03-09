@@ -24,18 +24,18 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[var(--th-bg)] flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">FernUniversität Hagen</div>
+          <div className="text-xs font-semibold th-text-3 uppercase tracking-widest mb-1">FernUniversität Hagen</div>
           <h1 className="text-2xl font-bold text-[#003366]">Study Organizer</h1>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-          <Link to="/login" className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-4">
+        <div className="th-card shadow-sm p-6">
+          <Link to="/login" className="flex items-center gap-1.5 text-sm th-text-2 hover:th-text-2 mb-4">
             <ArrowLeft size={14} /> Zurück zum Login
           </Link>
-          <h2 className="text-lg font-semibold text-slate-800 mb-1">Passwort zurücksetzen</h2>
+          <h2 className="text-lg font-semibold th-text mb-1">Passwort zurücksetzen</h2>
 
           {sent ? (
             <div className="mt-4">
@@ -46,7 +46,7 @@ export default function ForgotPasswordPage() {
             </div>
           ) : (
             <>
-              <p className="text-sm text-slate-500 mb-4">
+              <p className="text-sm th-text-2 mb-4">
                 Gib deine E-Mail-Adresse ein. Du erhältst einen Link zum Zurücksetzen.
               </p>
               {error && (
@@ -54,13 +54,13 @@ export default function ForgotPasswordPage() {
               )}
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">E-Mail</label>
+                  <label className="block text-sm font-medium th-text-2 mb-1">E-Mail</label>
                   <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                    className="th-input"
                     placeholder="deine@email.de" />
                 </div>
                 <button type="submit" disabled={loading}
-                  className="w-full py-2.5 bg-[#003366] text-white rounded-lg hover:bg-[#004488] font-medium text-sm disabled:opacity-60">
+                  className="w-full py-2.5 th-btn th-btn-primary font-medium text-sm disabled:opacity-60">
                   {loading ? 'Senden…' : 'Reset-Link anfordern'}
                 </button>
               </form>

@@ -17,6 +17,7 @@ Studienorganisations-Tool für das Fernstudium an der FernUniversität Hagen –
 | **Multi-User** | Eigene Accounts, Benutzerverwaltung durch Admin, individuelle Storage-Limits |
 | **Einstellungen** | Profil, Passwort ändern, CalDAV-Kalenderintegration, Storage-Übersicht |
 | **Admin-Konsole** | CRUD-Benutzerverwaltung, Ban/Unban, SMTP-Konfiguration, E-Mail-Templates |
+| **Admin-Backup** | Vollständiges System-Backup, Einstellungs-Backup, Benutzer-Export, Einzelnutzer-Export (inkl. PDFs) |
 
 ---
 
@@ -311,6 +312,193 @@ Datacenter → Backup → Add
 ```
 
 Dort den LXC-Container auswählen und einen Zeitplan einrichten (z.B. täglich 03:00 Uhr). Das sichert den gesamten Container inklusive aller Daten.
+
+---
+
+## Daten auf Synology NAS ablegen (NFS – höchste Performance)
+
+Statt Daten lokal im LXC-Container zu speichern, lassen sie sich direkt auf einem **Synology NAS** ablegen. Das empfohlene Protokoll ist **NFS v4** (geringste Latenz, kein SMB-Overhead, keine Passwort-Authentifizierung nötig im LAN).
+
+### Warum NFS?
+
+| Protokoll | Latenz | Durchsatz | Anmerkung |
+|---|---|---|---|
+| **NFS v4.1/v4.2** | sehr niedrig | sehr hoch | Empfohlen für Linux-Hosts |
+| SMB 3.x | niedrig | hoch | Gut für Windows-Clients |
+| iSCSI | minimal | maximal | Block-Level, komplexer einzurichten |
+| rsync/SFTP | — | — | Nur für Backups, kein Live-Mount |
+
+> NFS v4.2 unterstützt `server-side copy` und Sparse Files – ideal für große SQLite-Datenbanken.
+
+---
+
+### Schritt 1 – NFS auf der Synology einrichten
+
+**DSM (DiskStation Manager):**
+
+1. `Systemsteuerung → Dateidienste → NFS` → NFS aktivieren, NFS-Version: **NFSv4.1** aktivieren
+2. Ordner anlegen: `File Station → Neuer Ordner` → z.B. `/volume1/study-organizer-data`
+3. Ordner freigeben: `Systemsteuerung → Freigegebene Ordner → study-organizer-data → Bearbeiten → NFS-Berechtigungen → Erstellen`
+
+| Feld | Wert |
+|---|---|
+| Hostname oder IP | `<IP des Proxmox-Containers>` (z.B. `192.168.1.50`) |
+| Privilege | Lesen/Schreiben |
+| Squash | Kein Squashing (oder `root → admin` je nach UID) |
+| Sicherheit | `sys` |
+| NFS-Version | NFSv4 |
+| Asynchron | Nein (Sync = sicherer für SQLite) |
+
+```
+Ergebnis: NFS-Pfad auf der Synology: 192.168.1.10:/volume1/study-organizer-data
+```
+
+---
+
+### Schritt 2 – NFS-Mount im Proxmox-LXC einrichten
+
+```bash
+# NFS-Client installieren
+apt install -y nfs-common
+
+# Mountpunkt erstellen
+mkdir -p /mnt/synology-study
+
+# Einmalig testen:
+mount -t nfs4 -o vers=4.1,rsize=1048576,wsize=1048576,timeo=600,retrans=3 \
+  192.168.1.10:/volume1/study-organizer-data /mnt/synology-study
+
+# Dauerhaft in /etc/fstab eintragen:
+echo "192.168.1.10:/volume1/study-organizer-data  /mnt/synology-study  nfs4  \
+  vers=4.1,rsize=1048576,wsize=1048576,timeo=600,retrans=3,_netdev,nofail  0 0" \
+  >> /etc/fstab
+
+# Mount aktivieren:
+systemctl daemon-reload
+mount -a
+
+# Testen:
+df -h | grep synology
+touch /mnt/synology-study/test.txt && echo "NFS funktioniert"
+```
+
+**Wichtige Mount-Optionen:**
+
+| Option | Bedeutung |
+|---|---|
+| `vers=4.1` | NFS v4.1 (Performanceoptimierung) |
+| `rsize=1048576` | Lesepuffer 1 MB |
+| `wsize=1048576` | Schreibpuffer 1 MB |
+| `timeo=600` | 60s Timeout vor Retry |
+| `retrans=3` | 3 Wiederholungsversuche |
+| `_netdev` | Warten bis Netzwerk verfügbar |
+| `nofail` | Kein Boot-Fehler wenn NAS nicht erreichbar |
+
+---
+
+### Schritt 3 – Docker-Daten auf NFS-Share legen
+
+Die `docker-compose.yml` anpassen, sodass das Volume direkt auf den NFS-Mount zeigt:
+
+```yaml
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fernuni-study-organizer
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - /mnt/synology-study:/data   # NFS-Share direkt mounten statt Docker-Volume
+    environment:
+      NODE_ENV: production
+      DATA_DIR: /data
+      PORT: "3000"
+      TRUST_PROXY: "true"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/auth/check-setup"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+```
+
+> **Wichtig:** Das lokale `study_data` Docker-Volume wird nicht mehr benötigt. Alle Daten landen direkt auf der Synology.
+
+---
+
+### Schritt 4 – Automatische Backups auf der Synology
+
+#### Option A: Synology Hyper Backup (einfachste Lösung)
+
+Auf dem NAS: `Hyper Backup → Backup-Aufgabe erstellen`
+
+- **Quelle:** Ordner `study-organizer-data`
+- **Ziel:** Lokales Laufwerk, externes USB, Cloud (z.B. Backblaze B2, AWS S3)
+- **Zeitplan:** Täglich 02:00 Uhr
+- **Versionen:** 30 Tage Aufbewahrung
+
+Hyper Backup erstellt inkrementelle Backups und ermöglicht Wiederherstellung einzelner Dateiversionen.
+
+#### Option B: rsync-Task (Synology → Zweites NAS)
+
+`Systemsteuerung → Aufgabenplaner → Erstellen → Geplante Aufgabe → Benutzerdefiniertes Skript`:
+
+```bash
+#!/bin/bash
+# Täglich um 03:00 Uhr ausführen
+rsync -av --delete \
+  /volume1/study-organizer-data/ \
+  rsync://backup-nas.local/study-organizer-backup/
+```
+
+#### Option C: Admin-Backup-UI (in-App)
+
+Über `Admin-Konsole → Backup` können jederzeit manuell Backups erstellt werden:
+
+| Backup-Typ | Inhalt | Typische Größe |
+|---|---|---|
+| **Vollständiges System-Backup** | Alle Einstellungen + alle Nutzer + alle Daten (inkl. PDFs als Base64) | 100 MB – mehrere GB |
+| **Einstellungen** | SMTP, E-Mail-Templates, System-Config | < 1 KB |
+| **Benutzer-Export** | Alle Accounts (ohne Passwort-Hashes) | < 100 KB |
+| **Einzelnutzer** | Komplette Daten eines Nutzers | 10–500 MB |
+
+Die JSON-Dateien können direkt in einen Synology-Ordner gespeichert werden.
+
+---
+
+### Schritt 5 – Komplette Wiederherstellung (Disaster Recovery)
+
+```bash
+# 1. Neuen LXC-Container auf Proxmox erstellen (wie Schritt 1-2 der Hosting-Anleitung)
+
+# 2. NFS-Share einrichten (wie Schritt 2 dieser Anleitung)
+
+# 3. Anwendung klonen:
+git clone https://github.com/Mc5teiner/Uni.git /opt/apps/study-organizer
+cd /opt/apps/study-organizer
+
+# 4. docker-compose.yml: Volume auf NFS-Share zeigen lassen (Schritt 3)
+
+# 5. Container starten — alle Daten sind bereits auf dem NAS vorhanden:
+docker compose up -d --build
+
+# Fertig! Keine Wiederherstellung der DB nötig, da die .db-Datei auf dem NAS liegt.
+```
+
+> Bei 50–500 Benutzern liegen Datenbank und PDFs auf dem NAS. Ein Neustart des LXC-Containers
+> (oder ein neuer Container auf einem anderen Proxmox-Host) greift sofort auf alle Daten zu.
+
+---
+
+### Performance-Hinweise
+
+- SQLite hat kein Problem mit NFS, solange nur **ein Container** gleichzeitig schreibt (kein Multi-Writer-Szenario)
+- WAL-Modus (bereits aktiviert) reduziert Lock-Konflikte
+- NFS-`sync`-Mount verhindert Datenverlust bei NAS-Neustart
+- Bei sehr vielen Nutzern (> 100 gleichzeitig aktiv): erwäge PostgreSQL statt SQLite
 
 ---
 
