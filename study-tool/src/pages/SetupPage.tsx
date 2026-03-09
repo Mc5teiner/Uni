@@ -45,13 +45,13 @@ export default function SetupPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="text-xs font-semibold th-text-3 uppercase tracking-widest mb-1">FernUniversität Hagen</div>
-          <h1 className="text-2xl font-bold text-[#003366]">Study Organizer</h1>
+          <h1 className="text-2xl font-bold th-text">Study Organizer</h1>
           <p className="text-sm th-text-2 mt-2">Ersteinrichtung</p>
         </div>
 
         <div className="th-card shadow-sm p-6">
           <div className="flex items-center gap-2 mb-2">
-            <ShieldCheck size={20} className="text-[#003366]" />
+            <ShieldCheck size={20} style={{ color: 'var(--th-accent)' }} />
             <h2 className="text-lg font-semibold th-text">Administrator anlegen</h2>
           </div>
           <p className="text-sm th-text-2 mb-5">
@@ -59,7 +59,8 @@ export default function SetupPage() {
           </p>
 
           {error && (
-            <div className="mb-4 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+            <div className="mb-4 px-3 py-2 rounded-lg text-sm"
+              style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: 'var(--th-danger)' }}>
               {error}
             </div>
           )}
@@ -91,7 +92,7 @@ export default function SetupPage() {
               <div className="relative">
                 <input required type={showPw ? 'text' : 'password'} minLength={12} maxLength={128}
                   autoComplete="new-password"
-                  className="w-full border border-[var(--th-border)] rounded-lg px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                  className="th-input pr-10"
                   placeholder="••••••••••••" value={form.password} onChange={set('password')} />
                 <button type="button" tabIndex={-1} onClick={() => setShowPw(v => !v)}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 th-text-3 hover:th-text-2">

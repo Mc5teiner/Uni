@@ -27,11 +27,11 @@ const STATUS_LABELS: Record<ModuleStatus, string> = {
   pausiert: 'Pausiert',
 }
 
-const STATUS_COLORS: Record<ModuleStatus, string> = {
-  aktiv: 'bg-green-100 text-green-800',
-  abgeschlossen: 'bg-[var(--th-bg-secondary,#f1f5f9)] th-text-2',
-  geplant: 'bg-blue-100 text-blue-800',
-  pausiert: 'bg-yellow-100 text-yellow-800',
+const STATUS_COLORS: Record<ModuleStatus, { bg: string; color: string }> = {
+  aktiv:         { bg: 'rgba(22,163,74,0.15)',   color: '#22c55e'  },
+  abgeschlossen: { bg: 'var(--th-card-secondary)', color: 'var(--th-text-2)' },
+  geplant:       { bg: 'rgba(59,130,246,0.15)',   color: '#60a5fa'  },
+  pausiert:      { bg: 'rgba(234,179,8,0.15)',    color: '#d97706'  },
 }
 
 // ─── Passed Toggle (3-state: undefined / true / false) ───────────────────────
@@ -43,17 +43,20 @@ function PassedToggle({ value, onChange }: { value?: boolean; onChange: (v: bool
     else onChange(undefined)
   }
   if (value === true) return (
-    <button onClick={cycle} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-green-100 text-green-700 text-xs font-medium hover:bg-green-200 transition-colors whitespace-nowrap">
+    <button onClick={cycle} className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors whitespace-nowrap"
+      style={{ background: 'rgba(22,163,74,0.15)', color: '#22c55e' }}>
       <CheckCircle2 size={12} /> Bestanden
     </button>
   )
   if (value === false) return (
-    <button onClick={cycle} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-medium hover:bg-red-200 transition-colors whitespace-nowrap">
+    <button onClick={cycle} className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors whitespace-nowrap"
+      style={{ background: 'rgba(220,38,38,0.15)', color: '#f87171' }}>
       <XCircle size={12} /> Nicht bestanden
     </button>
   )
   return (
-    <button onClick={cycle} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[var(--th-bg-secondary,#f1f5f9)] th-text-3 text-xs hover:bg-slate-200 transition-colors whitespace-nowrap">
+    <button onClick={cycle} className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs th-text-3 transition-colors whitespace-nowrap"
+      style={{ background: 'var(--th-card-secondary)' }}>
       <Minus size={12} /> Ergebnis
     </button>
   )
@@ -65,9 +68,11 @@ function DoneToggle({ value, onChange }: { value: boolean; onChange: (v: boolean
   return (
     <button
       onClick={() => onChange(!value)}
-      className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
-        value ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' : 'bg-[var(--th-bg-secondary,#f1f5f9)] th-text-3 hover:bg-slate-200'
-      }`}
+      className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors whitespace-nowrap"
+      style={value
+        ? { background: 'rgba(59,130,246,0.15)', color: '#60a5fa' }
+        : { background: 'var(--th-card-secondary)', color: 'var(--th-text-3)' }
+      }
     >
       {value ? <Check size={12} /> : <Minus size={12} />}
       {value ? 'Erledigt' : 'Offen'}
@@ -164,7 +169,7 @@ function ModuleDetail({
         <div className="w-px h-5 bg-slate-200" />
         <span className="font-mono text-xs th-text-3">{module.moduleNumber}</span>
         <span className="text-sm font-medium th-text flex-1 truncate">{module.name}</span>
-        <span className={`text-xs px-2 py-1 rounded-full font-medium ${STATUS_COLORS[module.status]}`}>
+        <span className="text-xs px-2 py-1 rounded-full font-medium" style={{ background: STATUS_COLORS[module.status].bg, color: STATUS_COLORS[module.status].color }}>
           {STATUS_LABELS[module.status]}
         </span>
         <button
@@ -242,7 +247,7 @@ function ModuleDetail({
                   const exam = exams[idx]
                   const label = idx === 0 ? '1. Prüfungsversuch' : '2. Prüfungsversuch'
                   return (
-                    <div key={idx} className="grid grid-cols-[180px_1fr_1fr_auto] items-center gap-3 py-3 border-b border-[var(--th-border)] last:border-0">
+                    <div key={idx} className="grid grid-cols-1 sm:grid-cols-[180px_1fr_1fr_auto] items-center gap-3 py-3 border-b border-[var(--th-border)] last:border-0">
                       <span className="text-sm font-medium th-text-2">{label}</span>
                       <div>
                         <label className="block text-xs th-text-3 mb-0.5">Datum</label>
@@ -420,8 +425,8 @@ function ModuleDetail({
                             <span className="th-text-2">{format(parseISO(exam.date), 'dd.MM.yy')}</span>
                           )}
                           {exam.grade && <span className="font-medium">{exam.grade}</span>}
-                          {exam.passed === true && <span className="text-green-600 font-medium">✓</span>}
-                          {exam.passed === false && <span className="text-red-600 font-medium">✗</span>}
+                          {exam.passed === true && <Check size={14} style={{ color: '#22c55e' }} />}
+                          {exam.passed === false && <X size={14} style={{ color: '#ef4444' }} />}
                         </div>
                       </div>
                     )
@@ -498,13 +503,15 @@ function ModuleCard({
 
         {/* Exam / Assignment info */}
         {nextExam?.date && (
-          <div className="flex items-center gap-2 text-xs th-text-2 bg-amber-50 border border-amber-100 rounded-lg p-2 mb-3">
-            <GraduationCap size={12} className="text-amber-600" />
+          <div className="flex items-center gap-2 text-xs rounded-lg p-2 mb-3"
+            style={{ background: 'rgba(234,179,8,0.12)', border: '1px solid rgba(234,179,8,0.25)', color: '#d97706' }}>
+            <GraduationCap size={12} />
             <span>Prüfung: {format(parseISO(nextExam.date), 'dd.MM.yyyy', { locale: de })}</span>
           </div>
         )}
         {passedExam && (
-          <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-100 rounded-lg p-2 mb-3">
+          <div className="flex items-center gap-2 text-xs rounded-lg p-2 mb-3"
+            style={{ background: 'rgba(22,163,74,0.12)', border: '1px solid rgba(22,163,74,0.25)', color: '#22c55e' }}>
             <CheckCircle2 size={12} />
             <span>Bestanden{passedExam.grade ? ` (${passedExam.grade})` : ''}</span>
           </div>
@@ -771,7 +778,7 @@ export default function ModulePage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold th-text">Meine Module</h1>
