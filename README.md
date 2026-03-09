@@ -606,3 +606,12 @@ Sicherstellen, dass das Volume korrekt gemountet ist:
 docker volume ls | grep study_data
 docker inspect fernuni-study-organizer | grep -A5 Mounts
 ```
+
+# 1. Neues Image bauen
+docker compose build
+
+# 2. Nur den App-Container ersetzen (Volumes bleiben erhalten)
+docker compose up -d --no-deps app
+
+# Oder alles auf einmal:
+docker compose pull && docker compose up -d
