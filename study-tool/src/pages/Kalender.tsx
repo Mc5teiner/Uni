@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useApp } from '../context/AppContext'
 import type { CalendarEvent, EventType, StudySession } from '../types'
 import {
@@ -7,7 +7,7 @@ import {
   isToday
 } from 'date-fns'
 import { de } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Plus, X, Check, Clock, Upload, ExternalLink } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, X, Check, Clock, Upload, ExternalLink, Timer, Pause, Play, RotateCcw } from 'lucide-react'
 
 const EVENT_TYPE_LABELS: Record<EventType, string> = {
   pruefung: 'Prüfung',
@@ -27,13 +27,13 @@ const EVENT_TYPE_COLORS: Record<EventType, string> = {
   mentoriat: 'bg-teal-500',
 }
 
-const EVENT_TYPE_LIGHT: Record<EventType, string> = {
-  pruefung: 'bg-red-50 border-red-200 text-red-800',
-  abgabe: 'bg-orange-50 border-orange-200 text-orange-800',
-  lernblock: 'bg-blue-50 border-blue-200 text-blue-800',
-  praesenzveranstaltung: 'bg-purple-50 border-purple-200 text-purple-800',
-  erinnerung: 'bg-[var(--th-bg)] border-[var(--th-border)] th-text-2',
-  mentoriat: 'bg-teal-50 border-teal-200 text-teal-800',
+const EVENT_TYPE_STYLE: Record<EventType, { bg: string; border: string; color: string }> = {
+  pruefung:              { bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.30)',   color: '#f87171' },
+  abgabe:                { bg: 'rgba(249,115,22,0.12)',  border: 'rgba(249,115,22,0.30)',  color: '#fb923c' },
+  lernblock:             { bg: 'rgba(59,130,246,0.12)',  border: 'rgba(59,130,246,0.30)',  color: '#60a5fa' },
+  praesenzveranstaltung: { bg: 'rgba(139,92,246,0.12)', border: 'rgba(139,92,246,0.30)', color: '#c084fc' },
+  erinnerung:            { bg: 'var(--th-card-secondary)', border: 'var(--th-border)',    color: 'var(--th-text-2)' },
+  mentoriat:             { bg: 'rgba(20,184,166,0.12)',  border: 'rgba(20,184,166,0.30)', color: '#2dd4bf' },
 }
 
 // ─── Event Form ──────────────────────────────────────────────────────────────
@@ -188,6 +188,186 @@ function SessionLogger({ onLog, onCancel }: { onLog: (s: Omit<StudySession, 'id'
             <Check size={16} /> Erfassen
           </button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Pomodoro Timer ──────────────────────────────────────────────────────────
+
+type PomodoroMode = 'focus' | 'short' | 'long'
+
+const POMODORO_DURATIONS: Record<PomodoroMode, number> = {
+  focus: 25 * 60,
+  short: 5 * 60,
+  long:  15 * 60,
+}
+
+const MODE_LABELS: Record<PomodoroMode, string> = {
+  focus: 'Fokus',
+  short: 'Kurze Pause',
+  long:  'Lange Pause',
+}
+
+function PomodoroTimer({ onComplete }: { onComplete: (minutes: number) => void }) {
+  const [mode, setMode]         = useState<PomodoroMode>('focus')
+  const [timeLeft, setTimeLeft] = useState(POMODORO_DURATIONS.focus)
+  const [running, setRunning]   = useState(false)
+  const [rounds, setRounds]     = useState(0)
+  const [open, setOpen]         = useState(false)
+  const intervalRef             = useRef<ReturnType<typeof setInterval> | null>(null)
+  const startedMinutesRef       = useRef(0)
+
+  const stop = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current)
+    intervalRef.current = null
+    setRunning(false)
+  }, [])
+
+  const switchMode = useCallback((m: PomodoroMode) => {
+    stop()
+    setMode(m)
+    setTimeLeft(POMODORO_DURATIONS[m])
+  }, [stop])
+
+  useEffect(() => {
+    if (!running) return
+    intervalRef.current = setInterval(() => {
+      setTimeLeft(t => {
+        if (t <= 1) {
+          stop()
+          const elapsed = Math.round((POMODORO_DURATIONS[mode] - 1) / 60)
+          if (mode === 'focus') {
+            setRounds(r => r + 1)
+            if (elapsed > 0) onComplete(elapsed)
+            // auto-switch to break
+            const nextMode: PomodoroMode = (rounds + 1) % 4 === 0 ? 'long' : 'short'
+            setTimeout(() => switchMode(nextMode), 100)
+          } else {
+            setTimeout(() => switchMode('focus'), 100)
+          }
+          // Browser notification
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+            new Notification(mode === 'focus' ? '✅ Fokus-Session abgeschlossen!' : '▶️ Weiter lernen!', {
+              body: mode === 'focus' ? 'Zeit für eine Pause.' : 'Bereit für die nächste Session?',
+            })
+          }
+          return 0
+        }
+        return t - 1
+      })
+    }, 1000)
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [running, mode, rounds, stop, switchMode, onComplete])
+
+  const start = () => {
+    startedMinutesRef.current = timeLeft
+    setRunning(true)
+  }
+
+  const reset = () => {
+    stop()
+    setTimeLeft(POMODORO_DURATIONS[mode])
+  }
+
+  const mins = Math.floor(timeLeft / 60)
+  const secs = timeLeft % 60
+  const total = POMODORO_DURATIONS[mode]
+  const progress = ((total - timeLeft) / total) * 100
+
+  const modeColor = mode === 'focus' ? 'var(--th-accent)' : '#01b574'
+  const circumference = 2 * Math.PI * 45
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="fixed bottom-6 right-6 z-40 th-card flex items-center gap-2 px-4 py-3 shadow-lg hover:shadow-xl transition-shadow text-sm font-medium th-text"
+        style={{ borderRadius: 'var(--th-radius-lg)' }}
+        title="Pomodoro-Timer öffnen"
+      >
+        <Timer size={18} style={{ color: 'var(--th-accent)' }} />
+        <span>{running ? `${mins}:${String(secs).padStart(2, '0')} ${MODE_LABELS[mode]}` : 'Pomodoro'}</span>
+        {running && <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--th-accent)' }} />}
+      </button>
+    )
+  }
+
+  return (
+    <div
+      className="fixed bottom-6 right-6 z-40 th-card shadow-2xl p-5 w-72"
+      style={{ borderRadius: 'var(--th-radius-lg)' }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2 font-semibold th-text text-sm">
+          <Timer size={16} style={{ color: modeColor }} />
+          Pomodoro-Timer
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-xs th-text-3">{rounds} Runden</span>
+          <button onClick={() => setOpen(false)} className="ml-2 p-1 rounded th-text-3 hover:th-text-2">
+            <X size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Mode selector */}
+      <div className="flex gap-1 mb-4 p-1 rounded-lg" style={{ background: 'var(--th-card-secondary)' }}>
+        {(Object.keys(MODE_LABELS) as PomodoroMode[]).map(m => (
+          <button
+            key={m}
+            onClick={() => switchMode(m)}
+            className="flex-1 py-1 text-xs font-medium rounded-md transition-colors"
+            style={mode === m
+              ? { background: modeColor, color: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }
+              : { color: 'var(--th-text-2)' }
+            }
+          >
+            {m === 'focus' ? '🧠' : m === 'short' ? '☕' : '🛋️'} {MODE_LABELS[m]}
+          </button>
+        ))}
+      </div>
+
+      {/* Circular progress + time */}
+      <div className="flex flex-col items-center mb-5">
+        <div className="relative w-28 h-28">
+          <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="45" fill="none" stroke="var(--th-border)" strokeWidth="6" />
+            <circle
+              cx="50" cy="50" r="45" fill="none"
+              stroke={modeColor}
+              strokeWidth="6"
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={circumference * (1 - progress / 100)}
+              style={{ transition: 'stroke-dashoffset 1s linear' }}
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-2xl font-bold tabular-nums th-text">
+              {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
+            </span>
+            <span className="text-xs th-text-3">{MODE_LABELS[mode]}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div className="flex gap-2">
+        <button
+          onClick={reset}
+          className="th-btn th-btn-secondary p-2.5 rounded-lg flex-shrink-0"
+          title="Zurücksetzen"
+        >
+          <RotateCcw size={16} />
+        </button>
+        <button
+          onClick={running ? stop : start}
+          className="th-btn th-btn-primary flex-1 py-2.5 text-sm font-semibold"
+        >
+          {running ? <><Pause size={16} /> Pause</> : <><Play size={16} /> {timeLeft === POMODORO_DURATIONS[mode] ? 'Start' : 'Weiter'}</>}
+        </button>
       </div>
     </div>
   )
@@ -545,11 +725,13 @@ export default function KalenderPage() {
         </div>
         <div className="flex gap-3">
           <button onClick={() => setShowSessionForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium">
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white"
+            style={{ background: 'rgba(22,163,74,0.85)' }}>
             <Clock size={16} /> Session erfassen
           </button>
           <button onClick={() => setShowMentoriatImport(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm font-medium">
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white"
+            style={{ background: 'rgba(20,184,166,0.85)' }}>
             <Upload size={16} /> Mentoriate importieren
           </button>
           <button onClick={() => { setEditEvent(undefined); setShowEventForm(true) }}
@@ -645,7 +827,8 @@ export default function KalenderPage() {
                   return (
                     <div
                       key={e.id}
-                      className={`border rounded-lg p-3 ${EVENT_TYPE_LIGHT[e.type]} ${e.type === 'mentoriat' ? 'cursor-pointer hover:shadow-sm' : ''}`}
+                      className={`rounded-lg p-3 ${e.type === 'mentoriat' ? 'cursor-pointer hover:shadow-sm' : ''}`}
+                      style={{ background: EVENT_TYPE_STYLE[e.type].bg, border: `1px solid ${EVENT_TYPE_STYLE[e.type].border}`, color: EVENT_TYPE_STYLE[e.type].color }}
                       onClick={e.type === 'mentoriat' ? () => setViewMentoriat(e) : undefined}
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -741,6 +924,23 @@ export default function KalenderPage() {
           onDelete={() => removeEvent(viewMentoriat.id)}
         />
       )}
+
+      {/* Pomodoro Timer — floating widget */}
+      <PomodoroTimer
+        onComplete={(minutes) => {
+          // Auto-log the session if at least one active module exists
+          const activeModule = data.modules.find(m => m.status === 'aktiv')
+          if (activeModule) {
+            logSession({
+              moduleId: activeModule.id,
+              durationMinutes: minutes,
+              topic: 'Pomodoro-Session',
+              notes: '',
+              date: format(new Date(), 'yyyy-MM-dd'),
+            })
+          }
+        }}
+      />
     </div>
   )
 }
