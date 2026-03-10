@@ -1,0 +1,332 @@
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { useApp } from '../context/AppContext'
+import { format } from 'date-fns'
+import { Timer, Play, Pause, RotateCcw, BookOpen, CheckCircle, Coffee } from 'lucide-react'
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const DURATIONS = {
+  work:        25 * 60,
+  shortBreak:   5 * 60,
+  longBreak:   15 * 60,
+} as const
+
+type Mode = keyof typeof DURATIONS
+
+const MODE_LABELS: Record<Mode, string> = {
+  work:       'Fokus',
+  shortBreak: 'Kurze Pause',
+  longBreak:  'Lange Pause',
+}
+
+const MODE_COLORS: Record<Mode, string> = {
+  work:       '#2563eb',
+  shortBreak: '#16a34a',
+  longBreak:  '#7c3aed',
+}
+
+const LONG_BREAK_EVERY = 4
+
+// ─── Sound helper ─────────────────────────────────────────────────────────────
+
+function playDing(frequency = 880) {
+  try {
+    const ctx = new AudioContext()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.frequency.value = frequency
+    gain.gain.setValueAtTime(0.3, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6)
+    osc.start(ctx.currentTime)
+    osc.stop(ctx.currentTime + 0.6)
+  } catch { /* ignore */ }
+}
+
+// ─── Circular progress ────────────────────────────────────────────────────────
+
+function CircularTimer({
+  progress, color, children,
+}: {
+  progress: number
+  color: string
+  children: React.ReactNode
+}) {
+  const r = 110
+  const circumference = 2 * Math.PI * r
+  const offset = circumference * (1 - progress)
+
+  return (
+    <div className="relative" style={{ width: 280, height: 280 }}>
+      <svg width="280" height="280" className="absolute inset-0" aria-hidden="true">
+        <circle cx="140" cy="140" r={r} fill="none" stroke="var(--th-bg-secondary)" strokeWidth="12" />
+        <circle
+          cx="140" cy="140" r={r} fill="none"
+          stroke={color} strokeWidth="12"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          transform="rotate(-90 140 140)"
+          style={{ transition: 'stroke-dashoffset 1s linear' }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        {children}
+      </div>
+    </div>
+  )
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
+
+export default function PomodoroPage() {
+  const { data, logSession } = useApp()
+
+  const [mode, setMode]           = useState<Mode>('work')
+  const [timeLeft, setTimeLeft]   = useState(DURATIONS.work)
+  const [running, setRunning]     = useState(false)
+  const [pomodoros, setPomodoros] = useState(0) // completed this session
+  const [moduleId, setModuleId]   = useState(() => data.modules[0]?.id ?? '')
+  const [topic, setTopic]         = useState('')
+
+  // Refs for stale-closure-safe access inside setInterval
+  const modeRef       = useRef<Mode>('work')
+  const pomodorosRef  = useRef(0)
+  const moduleIdRef   = useRef(moduleId)
+  const topicRef      = useRef(topic)
+
+  modeRef.current      = mode
+  pomodorosRef.current = pomodoros
+  moduleIdRef.current  = moduleId
+  topicRef.current     = topic
+
+  const logSessionRef = useRef(logSession)
+  logSessionRef.current = logSession
+
+  // ── Set default module when modules load ──────────────────────────────────
+  useEffect(() => {
+    if (!moduleId && data.modules.length > 0) {
+      setModuleId(data.modules[0].id)
+    }
+  }, [data.modules, moduleId])
+
+  // ── Session complete handler ───────────────────────────────────────────────
+  const handleComplete = useCallback(() => {
+    playDing()
+    const currentMode = modeRef.current
+    const currentPomodoros = pomodorosRef.current
+
+    if (currentMode === 'work') {
+      // Log session
+      const mid = moduleIdRef.current
+      if (mid) {
+        logSessionRef.current({
+          moduleId: mid,
+          date: format(new Date(), 'yyyy-MM-dd'),
+          durationMinutes: DURATIONS.work / 60,
+          topic: topicRef.current.trim() || 'Pomodoro-Session',
+        })
+      }
+      const newCount = currentPomodoros + 1
+      setPomodoros(newCount)
+      const nextMode: Mode = newCount % LONG_BREAK_EVERY === 0 ? 'longBreak' : 'shortBreak'
+      setMode(nextMode)
+      setTimeLeft(DURATIONS[nextMode])
+    } else {
+      playDing(660)
+      setMode('work')
+      setTimeLeft(DURATIONS.work)
+    }
+  }, []) // intentionally empty — uses refs
+
+  // ── Countdown interval ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!running) return
+    const id = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(id)
+          setRunning(false)
+          setTimeout(handleComplete, 0)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(id)
+  }, [running, handleComplete])
+
+  // ── Actions ───────────────────────────────────────────────────────────────
+  const switchMode = (m: Mode) => {
+    setRunning(false)
+    setMode(m)
+    setTimeLeft(DURATIONS[m])
+  }
+
+  const reset = () => {
+    setRunning(false)
+    setTimeLeft(DURATIONS[mode])
+  }
+
+  // ── Display ───────────────────────────────────────────────────────────────
+  const mins = String(Math.floor(timeLeft / 60)).padStart(2, '0')
+  const secs = String(timeLeft % 60).padStart(2, '0')
+  const progress = 1 - timeLeft / DURATIONS[mode]
+  const color = MODE_COLORS[mode]
+
+  const today = format(new Date(), 'yyyy-MM-dd')
+  const todaySessions = data.sessions.filter(s => s.date === today)
+  const todayMins = todaySessions.reduce((s, x) => s + x.durationMinutes, 0) + pomodoros * (DURATIONS.work / 60)
+  const todayCount = todaySessions.filter(s => s.durationMinutes === DURATIONS.work / 60).length + pomodoros
+
+  return (
+    <div className="p-4 md:p-6 max-w-xl mx-auto">
+
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <Timer size={24} style={{ color: 'var(--th-accent)' }} />
+        <div>
+          <h1 className="text-2xl font-bold th-text">Pomodoro-Timer</h1>
+          <p className="text-sm th-text-2 mt-0.5">Fokussiertes Lernen in 25-Minuten-Intervallen</p>
+        </div>
+      </div>
+
+      {/* Mode tabs */}
+      <div
+        className="flex gap-1 mb-8 p-1 rounded-xl"
+        style={{ background: 'var(--th-bg-secondary)' }}
+      >
+        {(['work', 'shortBreak', 'longBreak'] as Mode[]).map(m => (
+          <button
+            key={m}
+            onClick={() => switchMode(m)}
+            className="flex-1 py-2 px-2 rounded-lg text-sm font-semibold transition-colors"
+            style={mode === m
+              ? { background: 'var(--th-card)', color: 'var(--th-text)', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }
+              : { color: 'var(--th-text-2)' }
+            }
+          >
+            {MODE_LABELS[m]}
+          </button>
+        ))}
+      </div>
+
+      {/* Timer circle */}
+      <div className="flex flex-col items-center mb-8">
+        <CircularTimer progress={progress} color={color}>
+          <div className="text-5xl font-mono font-bold th-text tabular-nums">
+            {mins}:{secs}
+          </div>
+          <div className="text-sm font-semibold mt-1" style={{ color }}>
+            {MODE_LABELS[mode]}
+          </div>
+          {/* Completed pomodoro dots */}
+          {pomodoros > 0 && (
+            <div className="flex gap-1.5 mt-3" aria-label={`${pomodoros} Pomodoros abgeschlossen`}>
+              {Array.from({ length: Math.min(pomodoros, LONG_BREAK_EVERY) }).map((_, i) => (
+                <div key={i} className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
+              ))}
+            </div>
+          )}
+        </CircularTimer>
+
+        {/* Controls */}
+        <div className="flex items-center gap-6 mt-4">
+          <button
+            onClick={reset}
+            className="p-3 rounded-full transition-colors th-text-2"
+            style={{ background: 'var(--th-bg-secondary)' }}
+            aria-label="Timer zurücksetzen"
+          >
+            <RotateCcw size={20} />
+          </button>
+          <button
+            onClick={() => setRunning(r => !r)}
+            className="w-16 h-16 rounded-full text-white flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95"
+            style={{ background: color }}
+            aria-label={running ? 'Pausieren' : 'Starten'}
+          >
+            {running
+              ? <Pause size={28} />
+              : <Play size={28} className="translate-x-0.5" />
+            }
+          </button>
+          <div style={{ width: '3rem' }} aria-hidden="true" />
+        </div>
+      </div>
+
+      {/* Session settings (work mode) */}
+      {mode === 'work' && (
+        <div
+          className="th-card p-5 mb-6 space-y-4"
+          style={{ border: '1px solid var(--th-border)' }}
+        >
+          <h3 className="text-sm font-semibold th-text flex items-center gap-2">
+            <BookOpen size={15} style={{ color: 'var(--th-text-3)' }} />
+            Session-Details
+          </h3>
+          <div>
+            <label className="block text-xs font-medium th-text-2 mb-1">Modul</label>
+            <select
+              className="th-input"
+              value={moduleId}
+              onChange={e => setModuleId(e.target.value)}
+            >
+              {data.modules.length === 0 && <option value="">– kein Modul –</option>}
+              {data.modules.map(m => (
+                <option key={m.id} value={m.id}>{m.moduleNumber} {m.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium th-text-2 mb-1">Thema (optional)</label>
+            <input
+              className="th-input"
+              value={topic}
+              onChange={e => setTopic(e.target.value)}
+              placeholder="z.B. Kapitel 3 – Kostenrechnung"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Break hint */}
+      {mode !== 'work' && (
+        <div
+          className="flex items-center gap-3 p-4 rounded-xl mb-6 text-sm"
+          style={{ background: 'var(--th-bg-secondary)', color: 'var(--th-text-2)' }}
+        >
+          <Coffee size={18} style={{ color, flexShrink: 0 }} />
+          <span>
+            {mode === 'shortBreak'
+              ? 'Kurze Pause – Streck dich, trink etwas Wasser!'
+              : 'Lange Pause – Du hast 4 Pomodoros geschafft! Gönn dir eine richtige Pause.'
+            }
+          </span>
+        </div>
+      )}
+
+      {/* Today's stats */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: 'Pomodoros heute', value: todayCount,    icon: Timer },
+          { label: 'Minuten heute',   value: todayMins,     icon: BookOpen },
+          { label: 'Diese Sitzung',   value: pomodoros,     icon: CheckCircle },
+        ].map(({ label, value, icon: Icon }) => (
+          <div key={label} className="th-card p-4 text-center">
+            <Icon size={16} className="mx-auto mb-1.5 th-text-3" />
+            <div className="text-xl font-bold th-text">{value}</div>
+            <div className="text-xs th-text-3 mt-0.5 leading-tight">{label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Technique hint */}
+      <p className="text-xs th-text-3 text-center mt-6 leading-relaxed">
+        25 Min. Fokus → 5 Min. Pause → alle 4 Pomodoros: 15 Min. lange Pause.<br />
+        Erledigte Fokusphasen werden automatisch als Lerneinheit gespeichert.
+      </p>
+    </div>
+  )
+}

@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext'
 import type { Flashcard, FlashcardDifficulty } from '../types'
 import { applyReview, getDueCards, getDifficultyLabel, getDifficultyColor } from '../utils/spaceRepetition'
 import { format, parseISO, differenceInDays } from 'date-fns'
-import { Plus, BrainCircuit, Check, X, Pencil, Layers, Tag, ImageIcon, RefreshCw, ZoomIn, Download, Upload, ChevronDown, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Plus, BrainCircuit, Check, X, Pencil, Layers, Tag, ImageIcon, RefreshCw, ZoomIn, Download, Upload, ChevronDown, AlertCircle, CheckCircle2, ListChecks, Trophy } from 'lucide-react'
 import { downloadAnkiExport, parseAnkiTxt, type ImportedCard } from '../utils/ankiIO'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -209,6 +209,131 @@ function ReviewSession({ cards, onDone, onReview }: {
             Nächste Wiederholung passt sich automatisch an deine Antwort an
           </p>
         </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Quiz Session ─────────────────────────────────────────────────────────────
+
+function QuizSession({ cards, onDone }: { cards: Flashcard[]; onDone: () => void }) {
+  const [index, setIndex]     = useState(0)
+  const [score, setScore]     = useState(0)
+  const [selected, setSelected] = useState<number | null>(null)
+  const [options, setOptions] = useState<string[]>([])
+  const [finished, setFinished] = useState(false)
+
+  const card = cards[index]
+
+  // Generate shuffled options whenever the card changes
+  useEffect(() => {
+    if (!card) return
+    const distractors = cards
+      .filter((_, i) => i !== index)
+      .map(c => c.back)
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 3)
+    setOptions([...distractors, card.back].sort(() => Math.random() - 0.5))
+    setSelected(null)
+  }, [index]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (finished || (!card && index >= cards.length)) {
+    const pct = Math.round((score / cards.length) * 100)
+    const passed = pct >= 70
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-8">
+        <Trophy size={56} className="mb-4" style={{ color: passed ? '#16a34a' : '#d97706' }} />
+        <h2 className="text-2xl font-bold th-text mb-1">Quiz abgeschlossen!</h2>
+        <p className="th-text-2 mb-3">{score} von {cards.length} richtig</p>
+        <div className="text-5xl font-bold mb-6" style={{ color: passed ? '#16a34a' : '#dc2626' }}>
+          {pct}%
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={() => { setIndex(0); setScore(0); setSelected(null); setFinished(false) }}
+            className="flex items-center gap-2 px-5 py-2.5 border border-[var(--th-border)] th-text-2 rounded-xl font-medium hover:bg-[var(--th-bg)]"
+          >
+            <RefreshCw size={16} /> Nochmal
+          </button>
+          <button onClick={onDone} className="px-6 py-2.5 th-btn th-btn-primary rounded-xl font-medium">
+            Zurück zur Übersicht
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const correctIdx = options.indexOf(card.back)
+
+  const handleSelect = (i: number) => {
+    if (selected !== null) return
+    setSelected(i)
+    if (i === correctIdx) setScore(s => s + 1)
+  }
+
+  const handleNext = () => {
+    if (index + 1 >= cards.length) setFinished(true)
+    else setIndex(i => i + 1)
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center h-full p-6 max-w-2xl mx-auto">
+      {/* Progress */}
+      <div className="w-full mb-6">
+        <div className="flex justify-between text-sm th-text-2 mb-2">
+          <span>{index + 1} / {cards.length} · <span className="text-green-600 font-medium">{score} richtig</span></span>
+          <button onClick={onDone} className="flex items-center gap-1 th-text-3 hover:th-text-2">
+            <X size={14} /> Abbrechen
+          </button>
+        </div>
+        <div className="h-2 bg-slate-200 rounded-full">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{ width: `${(index / cards.length) * 100}%`, background: '#7c3aed' }}
+          />
+        </div>
+      </div>
+
+      {/* Question card */}
+      <div className="w-full th-card shadow-lg border border-[var(--th-border)] flex flex-col items-center justify-center p-8 mb-6 text-center min-h-[140px]">
+        <div className="text-xs th-text-3 uppercase tracking-widest mb-3 font-medium">Frage</div>
+        <div className="text-xl font-medium th-text leading-relaxed whitespace-pre-wrap">{card.front}</div>
+        {card.frontImage && <CardImage src={card.frontImage} alt="Frage" />}
+      </div>
+
+      {/* Answer options */}
+      <div className="w-full space-y-2">
+        {options.map((opt, i) => {
+          let bg = 'var(--th-card)'
+          let border = 'var(--th-border)'
+          let textColor = 'var(--th-text)'
+          if (selected !== null) {
+            if (i === correctIdx)       { bg = '#f0fdf4'; border = '#16a34a'; textColor = '#15803d' }
+            else if (i === selected)    { bg = '#fef2f2'; border = '#ef4444'; textColor = '#b91c1c' }
+            else                        { textColor = 'var(--th-text-3)' }
+          }
+          return (
+            <button
+              key={i}
+              onClick={() => handleSelect(i)}
+              disabled={selected !== null}
+              className="w-full text-left p-4 rounded-xl border-2 text-sm font-medium transition-colors hover:opacity-90"
+              style={{ background: bg, borderColor: border, color: textColor }}
+            >
+              <span className="font-mono text-xs mr-2 opacity-50">{'ABCD'[i]}.</span>
+              {opt}
+            </button>
+          )
+        })}
+      </div>
+
+      {selected !== null && (
+        <button
+          onClick={handleNext}
+          className="mt-6 px-8 py-3 th-btn th-btn-primary rounded-xl font-semibold text-sm"
+        >
+          {index + 1 >= cards.length ? 'Ergebnis anzeigen' : 'Nächste Frage →'}
+        </button>
       )}
     </div>
   )
@@ -457,6 +582,8 @@ export default function KarteikartenPage() {
   const [editCard, setEditCard] = useState<Flashcard | undefined>()
   const [reviewing, setReviewing] = useState(false)
   const [reviewCards, setReviewCards] = useState<Flashcard[]>([])
+  const [quizzing, setQuizzing] = useState(false)
+  const [quizCards, setQuizCards] = useState<Flashcard[]>([])
 
   // Anki import/export state
   const [showAnkiMenu, setShowAnkiMenu] = useState(false)
@@ -556,6 +683,12 @@ export default function KarteikartenPage() {
     setReviewing(true)
   }
 
+  const startQuiz = () => {
+    if (allCards.length < 2) return
+    setQuizCards([...allCards].sort(() => Math.random() - 0.5))
+    setQuizzing(true)
+  }
+
   const handleReview = (card: Flashcard, q: FlashcardDifficulty) => {
     updateFlashcard(applyReview(card, q))
   }
@@ -583,6 +716,21 @@ export default function KarteikartenPage() {
         </div>
         <div className="flex-1">
           <ReviewSession cards={reviewCards} onDone={() => setReviewing(false)} onReview={handleReview} />
+        </div>
+      </div>
+    )
+  }
+
+  if (quizzing) {
+    return (
+      <div className="h-screen flex flex-col">
+        <div className="px-6 py-4 bg-white border-b border-[var(--th-border)] flex items-center gap-3">
+          <ListChecks size={20} style={{ color: '#7c3aed' }} />
+          <span className="font-semibold th-text">Quiz</span>
+          <span className="text-xs th-text-3">– {quizCards.length} Fragen</span>
+        </div>
+        <div className="flex-1">
+          <QuizSession cards={quizCards} onDone={() => setQuizzing(false)} />
         </div>
       </div>
     )
@@ -657,6 +805,15 @@ export default function KarteikartenPage() {
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
             >
               <RefreshCw size={16} /> Alle üben
+            </button>
+          )}
+          {allCards.length >= 2 && (
+            <button
+              onClick={startQuiz}
+              className="flex items-center gap-2 px-4 py-2 text-white rounded-lg transition-colors text-sm font-medium"
+              style={{ background: '#7c3aed' }}
+            >
+              <ListChecks size={16} /> Quiz
             </button>
           )}
 

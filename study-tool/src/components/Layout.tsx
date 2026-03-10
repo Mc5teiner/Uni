@@ -3,7 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, BookOpen, FileText, BrainCircuit,
   Calendar, Settings, LogOut, ShieldCheck, Menu, X,
-  GraduationCap, ChevronLeft, ChevronRight, Calculator,
+  GraduationCap, ChevronLeft, ChevronRight, Calculator, Timer,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
@@ -14,6 +14,7 @@ const navItems = [
   { to: '/karteikarten',  icon: BrainCircuit,    label: 'Karteikarten' },
   { to: '/kalender',      icon: Calendar,        label: 'Kalender & Plan' },
   { to: '/notenrechner',  icon: Calculator,      label: 'Notenrechner' },
+  { to: '/pomodoro',      icon: Timer,           label: 'Pomodoro' },
   { to: '/einstellungen', icon: Settings,        label: 'Einstellungen' },
 ]
 
