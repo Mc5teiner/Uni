@@ -261,7 +261,7 @@ export default function Layout() {
         Zum Hauptinhalt springen
       </a>
 
-      <div className="flex h-screen overflow-hidden th-bg">
+      <div className="flex h-screen overflow-hidden th-layout-outer">
         {/* ── Spacer: pushes content right of the fixed floating sidebar ── */}
         <div
           className="hidden md:block flex-shrink-0"
@@ -337,14 +337,19 @@ export default function Layout() {
             </div>
           </header>
 
-          {/* Page content */}
-          <main
-            id="main-content"
-            className="flex-1 overflow-y-auto scrollbar-thin th-bg"
-            tabIndex={-1}
+          {/* Floating content card — on desktop: 12 px gap on top/right/bottom,
+              rounded corners + shadow matching the sidebar float style         */}
+          <div
+            className="flex-1 flex flex-col min-h-0 th-content-float md:mt-3 md:mr-3 md:mb-3"
           >
-            <Outlet />
-          </main>
+            <main
+              id="main-content"
+              className="flex-1 overflow-y-auto scrollbar-thin"
+              tabIndex={-1}
+            >
+              <Outlet />
+            </main>
+          </div>
         </div>
       </div>
     </>
