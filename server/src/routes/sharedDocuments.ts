@@ -16,6 +16,7 @@ import {
   getSharedDocByHash,
   createSharedDoc,
   updateSharedDocPages,
+  getAllSharedDocsMeta,
 } from '../db'
 import { requireAuth } from '../middleware/auth'
 import type { AuthenticatedRequest } from '../types'
@@ -25,6 +26,24 @@ const router = Router()
 function r(req: import('express').Request): AuthenticatedRequest {
   return req as AuthenticatedRequest
 }
+
+// ─── GET /api/shared-documents ───────────────────────────────────────────────
+// Returns metadata for ALL shared documents (no fileData) so the client can
+// show a "available documents" list without downloading all PDFs upfront.
+
+router.get('/', requireAuth, (_req, res) => {
+  const docs = getAllSharedDocsMeta()
+  res.json(docs.map(d => ({
+    id:         d.id,
+    fileName:   d.file_name,
+    fileHash:   d.file_hash,
+    fileSize:   d.file_size,
+    totalPages: d.total_pages,
+    uploadedBy: d.uploaded_by,
+    uploadedAt: d.uploaded_at,
+    userCount:  d.user_count,
+  })))
+})
 
 // ─── GET /api/shared-documents/:id ───────────────────────────────────────────
 // Returns metadata + full base64 fileData for a specific document.

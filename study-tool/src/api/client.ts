@@ -273,6 +273,10 @@ export const caldav = {
 // ─── Shared Documents ────────────────────────────────────────────────────────
 
 export const sharedDocuments = {
+  /** List all shared documents (metadata only, no fileData). */
+  list: () =>
+    req<SharedDocument[]>('GET', '/api/shared-documents'),
+
   /** Upload a PDF (base64). Returns existing id if the same file was already uploaded. */
   upload: (fileName: string, fileData: string) =>
     req<{ id: string; existing: boolean; totalPages: number }>(

@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useApp } from '../context/AppContext'
-import type { StudyDocument, Bookmark } from '../types'
+import type { StudyDocument, Bookmark, SharedDocument } from '../types'
 import { generateId } from '../utils/storage'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
 import {
   Upload, FileText, Trash2, Bookmark as BookmarkIcon, BookmarkCheck,
   ChevronLeft, ChevronRight, ZoomIn, ZoomOut, X, Plus, ArrowLeft,
-  StickyNote, Pencil, Check, PanelLeft, Share2,
+  StickyNote, Pencil, Check, PanelLeft, Share2, Library,
 } from 'lucide-react'
 import * as pdfjsLib from 'pdfjs-dist'
 import { getNextSemesters } from '../data/fernuniModules'
@@ -633,16 +633,52 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
 
 export default function DokumentePage() {
   const { data, createDocument, updateDocument, removeDocument } = useApp()
-  const [activeDoc, setActiveDoc] = useState<StudyDocument | null>(null)
+  const [activeDoc, setActiveDoc]     = useState<StudyDocument | null>(null)
   const [filterModuleId, setFilterModuleId] = useState<string>('alle')
-  const [editingDoc, setEditingDoc] = useState<StudyDocument | null>(null)
-  const [uploading, setUploading] = useState(false)
-  const [uploadMsg, setUploadMsg] = useState<string | null>(null)
+  const [editingDoc, setEditingDoc]   = useState<StudyDocument | null>(null)
+  const [uploading, setUploading]     = useState(false)
+  const [uploadMsg, setUploadMsg]     = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // ── Shared-document pool ──────────────────────────────────────────────────
+  const [allSharedDocs, setAllSharedDocs] = useState<SharedDocument[]>([])
+  const [addingId, setAddingId]           = useState<string | null>(null)  // sharedDocumentId being added
+  const [addModuleId, setAddModuleId]     = useState<string>('')
+
+  // Load all shared docs once on mount (refresh when user's own docs change
+  // so we can recompute which ones still need to be added)
+  useEffect(() => {
+    sharedDocsApi.list()
+      .then(setAllSharedDocs)
+      .catch(() => {/* ignore silently */})
+  }, [data.documents.length]) // re-check when user adds/removes docs
+
+  // Set default target module when modules load or addingId changes
+  useEffect(() => {
+    if (!addModuleId && data.modules.length > 0) setAddModuleId(data.modules[0].id)
+  }, [data.modules, addModuleId])
+
+  // Shared docs the user has NOT yet added to their personal list
+  const ownSharedIds = new Set(data.documents.map(d => d.sharedDocumentId).filter(Boolean))
+  const availableSharedDocs = allSharedDocs.filter(sd => !ownSharedIds.has(sd.id))
 
   const currentSemester = SEMESTER_OPTIONS[0]
 
   const filtered = data.documents.filter(d => filterModuleId === 'alle' || d.moduleId === filterModuleId)
+
+  const handleAddSharedDoc = (sd: SharedDocument) => {
+    const moduleId = addModuleId || data.modules[0]?.id || ''
+    createDocument({
+      moduleId,
+      name:             sd.fileName.replace(/\.pdf$/i, ''),
+      fileName:         sd.fileName,
+      sharedDocumentId: sd.id,
+      totalPages:       sd.totalPages,
+      semester:         currentSemester,
+      lastReadAt:       undefined,
+    })
+    setAddingId(null)
+  }
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -868,6 +904,99 @@ export default function DokumentePage() {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* ── Shared documents not yet added ─────────────────────────────── */}
+      {availableSharedDocs.length > 0 && (
+        <div className="mt-8">
+          <div className="flex items-center gap-2 mb-3">
+            <Library size={16} style={{ color: 'var(--th-accent)' }} />
+            <h2 className="text-base font-semibold th-text">Geteilte Studienbriefe</h2>
+            <span className="text-xs th-text-3 bg-[var(--th-bg-secondary)] px-2 py-0.5 rounded-full">
+              {availableSharedDocs.length} noch nicht in deiner Ansicht
+            </span>
+          </div>
+          <p className="text-sm th-text-2 mb-4">
+            Diese Dokumente wurden von anderen Nutzern hochgeladen und stehen allen zur Verfügung.
+            Füge sie deinem Modul hinzu um Lesestand, Lesezeichen und Notizen zu speichern.
+          </p>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+            {availableSharedDocs.map(sd => (
+              <div
+                key={sd.id}
+                className="th-card overflow-hidden flex flex-col border-2 border-dashed border-[var(--th-border)]"
+                style={{ borderColor: 'color-mix(in srgb, var(--th-accent) 30%, transparent)' }}
+              >
+                {/* Shared indicator stripe */}
+                <div className="h-1.5 flex-shrink-0" style={{ background: 'var(--th-accent)' }} />
+
+                {/* Placeholder cover */}
+                <div
+                  className="w-full flex items-center justify-center"
+                  style={{ aspectRatio: '3/4', background: 'var(--th-bg-secondary)' }}
+                >
+                  <FileText size={36} style={{ color: 'var(--th-accent)', opacity: 0.5 }} />
+                </div>
+
+                <div className="p-3 flex-1 flex flex-col">
+                  <div className="flex items-center gap-1 mb-1">
+                    <Share2 size={10} style={{ color: 'var(--th-accent)' }} />
+                    <span className="text-xs font-medium" style={{ color: 'var(--th-accent)' }}>Geteilt</span>
+                  </div>
+                  <h3 className="font-medium th-text text-sm line-clamp-2 leading-snug mb-2">
+                    {sd.fileName.replace(/\.pdf$/i, '')}
+                  </h3>
+                  <div className="text-xs th-text-3 mb-3">
+                    {sd.totalPages > 0 && <span>{sd.totalPages} Seiten · </span>}
+                    <span>{new Date((sd.uploadedAt as number) * 1000).toLocaleDateString('de-DE')}</span>
+                  </div>
+
+                  {addingId === sd.id ? (
+                    /* ── Module selector inline ── */
+                    <div className="mt-auto space-y-2">
+                      <label className="block text-xs font-medium th-text-2">Modul auswählen</label>
+                      <select
+                        className="th-input text-xs"
+                        value={addModuleId}
+                        onChange={e => setAddModuleId(e.target.value)}
+                      >
+                        {data.modules.map(m => (
+                          <option key={m.id} value={m.id}>{m.moduleNumber} {m.name}</option>
+                        ))}
+                      </select>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleAddSharedDoc(sd)}
+                          className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-medium text-white"
+                          style={{ background: 'var(--th-accent)' }}
+                        >
+                          <Check size={12} /> Hinzufügen
+                        </button>
+                        <button
+                          onClick={() => setAddingId(null)}
+                          className="px-3 py-1.5 rounded-lg text-xs th-text-2 border border-[var(--th-border)]"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { setAddingId(sd.id); if (!addModuleId && data.modules[0]) setAddModuleId(data.modules[0].id) }}
+                      className="mt-auto w-full py-2 text-xs font-semibold rounded-lg border-2 transition-colors th-text-2 hover:th-text"
+                      style={{ borderColor: 'var(--th-accent)', color: 'var(--th-accent)' }}
+                      disabled={data.modules.length === 0}
+                      title={data.modules.length === 0 ? 'Erst ein Modul anlegen' : undefined}
+                    >
+                      + Zu meinem Modul hinzufügen
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
