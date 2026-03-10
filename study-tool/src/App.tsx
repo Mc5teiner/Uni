@@ -14,6 +14,7 @@ import SetupPage from './pages/SetupPage'
 import ForgotPasswordPage from './pages/ForgotPassword'
 import ResetPasswordPage from './pages/ResetPassword'
 import AdminConsolePage from './pages/AdminConsole'
+import NotenrechnerPage from './pages/Notenrechner'
 
 // ─── Route guards ─────────────────────────────────────────────────────────────
 
@@ -67,6 +68,7 @@ export default function App() {
             <Route path="karteikarten"   element={<KarteikartenPage />} />
             <Route path="kalender"       element={<KalenderPage />} />
             <Route path="einstellungen"  element={<EinstellungenPage />} />
+            <Route path="notenrechner"   element={<NotenrechnerPage />} />
             <Route path="admin"          element={
               <RequireAdmin><AdminConsolePage /></RequireAdmin>
             } />
