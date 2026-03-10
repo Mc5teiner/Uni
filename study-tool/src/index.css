@@ -303,6 +303,51 @@ body {
   background: linear-gradient(145deg, #080E21 0%, #0E1730 50%, #0A1228 100%);
 }
 
+/* ─── Layout outer: slightly different from content bg so the
+       floating content card is visually separated ─────────────── */
+
+.th-layout-outer {
+  /* Mobile: same as content bg */
+  background-color: var(--th-bg);
+}
+
+@media (min-width: 768px) {
+  .th-layout-outer {
+    background-color: var(--th-bg-secondary);
+  }
+}
+
+[data-theme="vision"] .th-layout-outer {
+  background-color: var(--th-bg);
+}
+
+@media (min-width: 768px) {
+  [data-theme="vision"] .th-layout-outer {
+    background: #06091A;
+  }
+}
+
+/* Floating content card — mirrors the sidebar float style */
+.th-content-float {
+  background: var(--th-bg);
+}
+
+@media (min-width: 768px) {
+  .th-content-float {
+    border-radius: var(--radius-2xl);
+    overflow: hidden;
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  }
+
+  [data-theme="vision"] .th-content-float {
+    box-shadow: 0 4px 32px rgba(0, 0, 0, 0.40), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  }
+
+  [data-theme="horizon"] .th-content-float {
+    box-shadow: 0 2px 16px rgba(99, 102, 241, 0.08), 0 0 0 1px rgba(99, 102, 241, 0.08);
+  }
+}
+
 /* ─── Cards ──────────────────────────────────────────────────── */
 
 .th-card {

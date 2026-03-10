@@ -3,7 +3,8 @@ import { useApp } from '../context/AppContext'
 import type { Flashcard, FlashcardDifficulty } from '../types'
 import { applyReview, getDueCards, getDifficultyLabel, getDifficultyColor } from '../utils/spaceRepetition'
 import { format, parseISO, differenceInDays } from 'date-fns'
-import { Plus, BrainCircuit, Check, X, Pencil, Layers, Tag, ImageIcon, RefreshCw, ZoomIn } from 'lucide-react'
+import { Plus, BrainCircuit, Check, X, Pencil, Layers, Tag, ImageIcon, RefreshCw, ZoomIn, Download, Upload, ChevronDown, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { downloadAnkiExport, parseAnkiTxt, type ImportedCard } from '../utils/ankiIO'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -309,6 +310,145 @@ function CardForm({ initial, defaultModuleId, modules, onSave, onCancel }: {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+// ─── Anki Import Dialog ───────────────────────────────────────────────────────
+
+interface AnkiImportDialogProps {
+  pending: ImportedCard[]
+  modules: { id: string; name: string; moduleNumber: string; color: string }[]
+  onConfirm: (assignments: Record<number, string>) => void
+  onCancel: () => void
+}
+
+function AnkiImportDialog({ pending, modules, onConfirm, onCancel }: AnkiImportDialogProps) {
+  // moduleAssignment[cardIndex] = moduleId
+  const [assignments, setAssignments] = useState<Record<number, string>>(() => {
+    const init: Record<number, string> = {}
+    pending.forEach((card, i) => {
+      if (card.detectedModuleNumber) {
+        const found = modules.find(m =>
+          m.moduleNumber.replace(/\s+/g, '') === card.detectedModuleNumber?.replace(/\s+/g, '')
+        )
+        init[i] = found?.id ?? modules[0]?.id ?? ''
+      } else {
+        init[i] = modules[0]?.id ?? ''
+      }
+    })
+    return init
+  })
+
+  const [globalModule, setGlobalModule] = useState(modules[0]?.id ?? '')
+
+  const applyGlobal = () => {
+    const next: Record<number, string> = {}
+    pending.forEach((_, i) => { next[i] = globalModule })
+    setAssignments(next)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <div className="th-card shadow-2xl w-full max-w-2xl my-4 flex flex-col max-h-[90vh]">
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 border-b shrink-0" style={{ borderColor: 'var(--th-border)' }}>
+          <div>
+            <h2 className="text-lg font-bold" style={{ color: 'var(--th-text)' }}>Anki-Import</h2>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--th-text-2)' }}>
+              {pending.length} Karte{pending.length !== 1 ? 'n' : ''} gefunden — Modul zuweisen
+            </p>
+          </div>
+          <button onClick={onCancel} className="th-icon-btn"><X size={20} /></button>
+        </div>
+
+        {/* Global assign */}
+        <div className="px-5 py-3 flex items-center gap-3 border-b shrink-0"
+          style={{ background: 'var(--th-bg-secondary)', borderColor: 'var(--th-border)' }}>
+          <span className="text-sm font-medium shrink-0" style={{ color: 'var(--th-text-2)' }}>Alle zuweisen:</span>
+          <select
+            className="th-input flex-1"
+            value={globalModule}
+            onChange={e => setGlobalModule(e.target.value)}
+          >
+            {modules.map(m => (
+              <option key={m.id} value={m.id}>{m.moduleNumber} {m.name}</option>
+            ))}
+          </select>
+          <button
+            onClick={applyGlobal}
+            className="shrink-0 px-3 py-1.5 text-sm font-semibold rounded-lg th-btn"
+            style={{ background: 'var(--th-accent-soft)', color: 'var(--th-accent-soft-text)' }}
+          >
+            Anwenden
+          </button>
+        </div>
+
+        {/* Card list */}
+        <div className="flex-1 overflow-y-auto">
+          {pending.map((card, i) => {
+            const auto = !!card.detectedModuleNumber && modules.some(m =>
+              m.moduleNumber.replace(/\s+/g, '') === card.detectedModuleNumber?.replace(/\s+/g, '')
+            )
+            return (
+              <div
+                key={i}
+                className="flex items-start gap-3 px-5 py-3 border-b"
+                style={{ borderColor: 'var(--th-border)' }}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate" style={{ color: 'var(--th-text)' }}>
+                    {card.front}
+                  </div>
+                  <div className="text-xs truncate mt-0.5" style={{ color: 'var(--th-text-2)' }}>
+                    {card.back}
+                  </div>
+                  {card.tags.length > 0 && (
+                    <div className="flex gap-1 mt-1 flex-wrap">
+                      {card.tags.map(t => (
+                        <span key={t} className="text-[10px] px-1.5 py-0.5 rounded-full"
+                          style={{ background: 'var(--th-bg-secondary)', color: 'var(--th-text-3)' }}>
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="shrink-0 flex flex-col items-end gap-1">
+                  <select
+                    className="th-input text-xs py-1"
+                    value={assignments[i] ?? ''}
+                    onChange={e => setAssignments(prev => ({ ...prev, [i]: e.target.value }))}
+                    style={{ minWidth: '9rem' }}
+                  >
+                    {modules.map(m => (
+                      <option key={m.id} value={m.id}>{m.moduleNumber} {m.name}</option>
+                    ))}
+                  </select>
+                  {auto && (
+                    <span className="text-[10px]" style={{ color: '#16a34a' }}>↑ Auto-erkannt</span>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-3 p-5 border-t shrink-0" style={{ borderColor: 'var(--th-border)' }}>
+          <button onClick={onCancel} className="th-btn px-4 py-2 text-sm" style={{ color: 'var(--th-text-2)' }}>
+            Abbrechen
+          </button>
+          <button
+            onClick={() => onConfirm(assignments)}
+            className="th-btn th-btn-primary flex items-center gap-2 px-4 py-2 text-sm"
+          >
+            <Check size={16} /> {pending.length} Karten importieren
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
+
 export default function KarteikartenPage() {
   const { data, createFlashcard, updateFlashcard, removeFlashcard } = useApp()
   const [filterModuleId, setFilterModuleId] = useState<string>('alle')
@@ -317,6 +457,12 @@ export default function KarteikartenPage() {
   const [editCard, setEditCard] = useState<Flashcard | undefined>()
   const [reviewing, setReviewing] = useState(false)
   const [reviewCards, setReviewCards] = useState<Flashcard[]>([])
+
+  // Anki import/export state
+  const [showAnkiMenu, setShowAnkiMenu] = useState(false)
+  const [importPending, setImportPending] = useState<ImportedCard[] | null>(null)
+  const [importResult, setImportResult] = useState<{ count: number; skipped: number } | null>(null)
+  const importInputRef = useRef<HTMLInputElement>(null)
 
   const activeModuleId = filterModuleId === 'alle' ? undefined : filterModuleId
 
@@ -337,6 +483,58 @@ export default function KarteikartenPage() {
     .filter(c => activeTags.size === 0 || c.tags.some(t => activeTags.has(t)))
 
   const today = format(new Date(), 'yyyy-MM-dd')
+
+  // ── Module map for Anki export ─────────────────────────────────────────────
+  const moduleMap = Object.fromEntries(
+    data.modules.map(m => [m.id, { name: m.name, moduleNumber: m.moduleNumber }])
+  )
+
+  // ── Anki export ────────────────────────────────────────────────────────────
+  const handleExportAll = () => {
+    downloadAnkiExport(data.flashcards, moduleMap)
+    setShowAnkiMenu(false)
+  }
+
+  const handleExportFiltered = () => {
+    downloadAnkiExport(allCards, moduleMap)
+    setShowAnkiMenu(false)
+  }
+
+  // ── Anki import ────────────────────────────────────────────────────────────
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setShowAnkiMenu(false)
+
+    const result = await parseAnkiTxt(file)
+    if (result.cards.length === 0) {
+      alert(result.warnings.join('\n') || 'Keine Karten in der Datei gefunden.')
+      return
+    }
+    setImportPending(result.cards)
+  }
+
+  const handleImportConfirm = (assignments: Record<number, string>) => {
+    if (!importPending) return
+    let count = 0
+    for (let i = 0; i < importPending.length; i++) {
+      const card = importPending[i]
+      const moduleId = assignments[i] ?? data.modules[0]?.id ?? ''
+      createFlashcard({
+        front:       card.front,
+        back:        card.back,
+        tags:        card.tags,
+        moduleId,
+        frontImage:  card.frontImage,
+        backImage:   card.backImage,
+      })
+      count++
+    }
+    setImportPending(null)
+    setImportResult({ count, skipped: 0 })
+    setTimeout(() => setImportResult(null), 4000)
+  }
 
   const toggleTag = (tag: string) => {
     setActiveTags(prev => {
@@ -394,12 +592,57 @@ export default function KarteikartenPage() {
 
   return (
     <div className="p-4 md:p-6">
+
+      {/* Hidden file input for Anki import */}
+      <input
+        ref={importInputRef}
+        type="file"
+        accept=".txt,.tsv,.csv"
+        className="hidden"
+        onChange={handleImportFile}
+      />
+
+      {/* Import result toast */}
+      {importResult && (
+        <div
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-xl text-sm font-semibold"
+          style={{ background: '#16a34a', color: 'white' }}
+        >
+          <CheckCircle2 size={16} />
+          {importResult.count} Karten erfolgreich importiert!
+        </div>
+      )}
+
+      {/* Anki import dialog */}
+      {importPending && data.modules.length > 0 && (
+        <AnkiImportDialog
+          pending={importPending}
+          modules={data.modules}
+          onConfirm={handleImportConfirm}
+          onCancel={() => setImportPending(null)}
+        />
+      )}
+      {importPending && data.modules.length === 0 && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="th-card p-6 max-w-sm w-full text-center shadow-2xl">
+            <AlertCircle size={32} className="mx-auto mb-3" style={{ color: 'var(--th-danger)' }} />
+            <p className="font-semibold mb-2" style={{ color: 'var(--th-text)' }}>Kein Modul vorhanden</p>
+            <p className="text-sm mb-4" style={{ color: 'var(--th-text-2)' }}>
+              Bitte lege zuerst mindestens ein Modul an, bevor du Karten importierst.
+            </p>
+            <button onClick={() => setImportPending(null)} className="th-btn th-btn-primary px-4 py-2 text-sm">
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold th-text">Karteikarten</h1>
           <p className="text-sm th-text-2 mt-1">{allCards.length} Karten{activeTags.size > 0 ? ' (gefiltert)' : ''}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center flex-wrap justify-end">
           {dueCards.length > 0 && (
             <button
               onClick={startDueReview}
@@ -416,6 +659,84 @@ export default function KarteikartenPage() {
               <RefreshCw size={16} /> Alle üben
             </button>
           )}
+
+          {/* Anki import/export dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setShowAnkiMenu(v => !v)}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg border transition-colors"
+              style={{
+                borderColor: 'var(--th-border)',
+                background: showAnkiMenu ? 'var(--th-bg-secondary)' : 'var(--th-card)',
+                color: 'var(--th-text-2)',
+              }}
+              aria-haspopup="true"
+              aria-expanded={showAnkiMenu}
+            >
+              <img
+                src="https://apps.ankiweb.net/favicon.ico"
+                alt=""
+                className="w-4 h-4 rounded"
+                onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+              />
+              Anki
+              <ChevronDown size={13} />
+            </button>
+
+            {showAnkiMenu && (
+              <>
+                {/* Backdrop to close */}
+                <div className="fixed inset-0 z-10" onClick={() => setShowAnkiMenu(false)} />
+                <div
+                  className="absolute right-0 top-full mt-1.5 z-20 rounded-xl shadow-xl overflow-hidden min-w-[13rem]"
+                  style={{ background: 'var(--th-card)', border: '1px solid var(--th-border)' }}
+                >
+                  <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--th-border)' }}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--th-text-3)' }}>
+                      Exportieren
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleExportAll}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-[var(--th-bg-secondary)]"
+                    style={{ color: 'var(--th-text)' }}
+                  >
+                    <Download size={15} style={{ color: 'var(--th-text-3)' }} />
+                    <span>Alle {data.flashcards.length} Karten</span>
+                  </button>
+                  {allCards.length !== data.flashcards.length && (
+                    <button
+                      onClick={handleExportFiltered}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-[var(--th-bg-secondary)]"
+                      style={{ color: 'var(--th-text)' }}
+                    >
+                      <Download size={15} style={{ color: 'var(--th-text-3)' }} />
+                      <span>Gefilterte {allCards.length} Karten</span>
+                    </button>
+                  )}
+                  <div className="px-3 py-2 border-t border-b" style={{ borderColor: 'var(--th-border)' }}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--th-text-3)' }}>
+                      Importieren
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => { importInputRef.current?.click(); setShowAnkiMenu(false) }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-[var(--th-bg-secondary)]"
+                    style={{ color: 'var(--th-text)' }}
+                  >
+                    <Upload size={15} style={{ color: 'var(--th-text-3)' }} />
+                    <span>Aus Anki-Datei (.txt)</span>
+                  </button>
+                  <div className="px-3 py-2 border-t" style={{ borderColor: 'var(--th-border)', background: 'var(--th-bg-secondary)' }}>
+                    <p className="text-[10px]" style={{ color: 'var(--th-text-3)' }}>
+                      Export in Anki: Datei → Exportieren → „Notizen als Klartext (.txt)"
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
           <button
             onClick={() => { setEditCard(undefined); setShowForm(true) }}
             className="flex items-center gap-2 px-4 py-2 th-btn th-btn-primary transition-colors text-sm font-medium"
