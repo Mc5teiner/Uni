@@ -3,17 +3,18 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, BookOpen, FileText, BrainCircuit,
   Calendar, Settings, LogOut, ShieldCheck, Menu, X,
-  GraduationCap, ChevronLeft, ChevronRight,
+  GraduationCap, ChevronLeft, ChevronRight, Calculator,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 const navItems = [
-  { to: '/',             icon: LayoutDashboard, label: 'Dashboard',       end: true },
-  { to: '/module',       icon: BookOpen,        label: 'Module' },
-  { to: '/dokumente',    icon: FileText,        label: 'Studienbriefe' },
-  { to: '/karteikarten', icon: BrainCircuit,    label: 'Karteikarten' },
-  { to: '/kalender',     icon: Calendar,        label: 'Kalender & Plan' },
-  { to: '/einstellungen',icon: Settings,        label: 'Einstellungen' },
+  { to: '/',              icon: LayoutDashboard, label: 'Dashboard',       end: true },
+  { to: '/module',        icon: BookOpen,        label: 'Module' },
+  { to: '/dokumente',     icon: FileText,        label: 'Studienbriefe' },
+  { to: '/karteikarten',  icon: BrainCircuit,    label: 'Karteikarten' },
+  { to: '/kalender',      icon: Calendar,        label: 'Kalender & Plan' },
+  { to: '/notenrechner',  icon: Calculator,      label: 'Notenrechner' },
+  { to: '/einstellungen', icon: Settings,        label: 'Einstellungen' },
 ]
 
 const SIDEBAR_FULL = 260

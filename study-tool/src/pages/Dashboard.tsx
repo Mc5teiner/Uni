@@ -1,10 +1,16 @@
+import { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
 import { getDueCards } from '../utils/spaceRepetition'
 import { format, parseISO, isToday, isTomorrow, differenceInDays, startOfWeek, eachDayOfInterval, endOfWeek } from 'date-fns'
 import { de } from 'date-fns/locale'
-import { BrainCircuit, FileText, BookOpen, Calendar, Clock, TrendingUp, AlertCircle, CheckCircle2, ArrowRight, Flame } from 'lucide-react'
+import { BrainCircuit, FileText, BookOpen, Calendar, Clock, TrendingUp, AlertCircle, CheckCircle2, ArrowRight, Flame, Calculator, GraduationCap } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import {
+  calcGesamtnote, calcPflichtStats, calcWahlStats,
+  defaultGradeConfig, type GradeConfig,
+  GRADE_CONFIG_KEY, fmtGrade2, fmtGrade1, gradeColor, gradeLabel, roundToStep,
+} from '../utils/gradeCalculations'
 
 function getGreeting(name: string): string {
   const h = new Date().getHours()
@@ -196,6 +202,93 @@ function WeekChart({ sessions }: { sessions: { date: string; durationMinutes: nu
         )
       })}
     </div>
+  )
+}
+
+// ─── Gesamtnote widget (reads grade config from localStorage) ─────────────────
+
+function GesamtnoteWidget() {
+  const [cfg, setCfg] = useState<GradeConfig | null>(null)
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(GRADE_CONFIG_KEY)
+      if (stored) {
+        const parsed = JSON.parse(stored) as Partial<GradeConfig>
+        setCfg({ ...defaultGradeConfig(), ...parsed })
+      }
+    } catch { /* ignore */ }
+  }, [])
+
+  const gesamt  = cfg ? calcGesamtnote(cfg) : null
+  const pflicht = cfg ? calcPflichtStats(cfg) : null
+  const wahl    = cfg ? calcWahlStats(cfg)    : null
+
+  return (
+    <section aria-labelledby="grade-heading" className="th-card p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h2 id="grade-heading" className="th-section-title flex items-center gap-2">
+          <GraduationCap size={16} aria-hidden="true" style={{ color: 'var(--th-accent)' }} />
+          Notenübersicht
+        </h2>
+        <Link
+          to="/notenrechner"
+          className="text-xs font-semibold flex items-center gap-1 hover:underline"
+          style={{ color: 'var(--th-accent)' }}
+        >
+          <Calculator size={12} /> Rechner öffnen
+        </Link>
+      </div>
+
+      {gesamt !== null ? (
+        <div className="flex items-center gap-5">
+          {/* Big grade number */}
+          <div
+            className="text-5xl font-black leading-none shrink-0"
+            style={{ color: gradeColor(gesamt), letterSpacing: '-0.06em' }}
+          >
+            {fmtGrade2(gesamt)}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold mb-0.5" style={{ color: gradeColor(gesamt) }}>
+              {gradeLabel(gesamt)} · gerundet: {fmtGrade1(roundToStep(gesamt))}
+            </div>
+            <div className="flex gap-4 text-xs" style={{ color: 'var(--th-text-3)' }}>
+              {pflicht?.avg != null && (
+                <span>Pflicht: <strong style={{ color: 'var(--th-text-2)' }}>{fmtGrade1(pflicht.avg)}</strong> ({pflicht.enteredCount}/10)</span>
+              )}
+              {wahl?.avg != null && (
+                <span>Wahl: <strong style={{ color: 'var(--th-text-2)' }}>{fmtGrade1(wahl.avg)}</strong> ({wahl.enteredCount}/8)</span>
+              )}
+            </div>
+            {pflicht && pflicht.issues.length > 0 && (
+              <div className="flex items-center gap-1 text-xs mt-1.5" style={{ color: 'var(--th-danger)' }}>
+                <AlertCircle size={11} />
+                {pflicht.issues[0]}
+              </div>
+            )}
+            {pflicht?.passingMet && (
+              <div className="flex items-center gap-1 text-xs mt-1.5" style={{ color: '#16a34a' }}>
+                <CheckCircle2 size={11} /> Pflichtbereich bestanden
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="text-center py-3">
+          <div className="text-3xl font-black mb-1" style={{ color: 'var(--th-text-3)', letterSpacing: '-0.04em' }}>–</div>
+          <p className="text-xs mb-3" style={{ color: 'var(--th-text-3)' }}>
+            Noch keine Noten eingetragen
+          </p>
+          <Link
+            to="/notenrechner"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold th-btn th-btn-primary px-3 py-1.5"
+          >
+            <Calculator size={13} /> Noten eingeben
+          </Link>
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -488,6 +581,9 @@ export default function Dashboard() {
         {/* Right column */}
         <div className="space-y-6">
 
+          {/* Gesamtnote widget */}
+          <GesamtnoteWidget />
+
           {/* Quick actions */}
           <section aria-labelledby="quicklinks-heading" className="th-card p-6">
             <h2 id="quicklinks-heading" className="th-section-title mb-4">Schnellzugriff</h2>
@@ -516,6 +612,14 @@ export default function Dashboard() {
                   fg:   '#8B5CF6',
                   label: 'Kalender',
                   sub:  `${upcomingDeadlines.length} kommende Termine`,
+                },
+                {
+                  to:   '/notenrechner',
+                  icon: Calculator,
+                  bg:   'rgba(16,185,129,0.12)',
+                  fg:   '#10B981',
+                  label: 'Notenrechner',
+                  sub:  'B.Sc. Gesamtnote berechnen',
                 },
               ].map(item => (
                 <Link
