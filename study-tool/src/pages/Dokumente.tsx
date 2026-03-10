@@ -697,20 +697,25 @@ export default function DokumentePage() {
 
       const result = await sharedDocsApi.upload(file.name, base64)
 
-      createDocument({
-        moduleId:         filterModuleId === 'alle' ? (data.modules[0]?.id ?? '') : filterModuleId,
-        name:             file.name.replace(/\.pdf$/i, ''),
-        fileName:         file.name,
-        sharedDocumentId: result.id,
-        totalPages:       result.totalPages,
-        semester:         currentSemester,
-        lastReadAt:       undefined,
-      })
-
-      setUploadMsg(result.existing
-        ? '✓ Datei bereits vorhanden – bestehende Version verknüpft (kein doppelter Speicher)'
-        : '✓ Studienbrief hochgeladen und im gemeinsamen Speicher abgelegt'
-      )
+      // Don't create a second entry if this user already has this shared doc
+      const alreadyInList = data.documents.some(d => d.sharedDocumentId === result.id)
+      if (alreadyInList) {
+        setUploadMsg('ℹ️ Dieser Studienbrief ist bereits in deiner Liste.')
+      } else {
+        createDocument({
+          moduleId:         filterModuleId === 'alle' ? (data.modules[0]?.id ?? '') : filterModuleId,
+          name:             file.name.replace(/\.pdf$/i, ''),
+          fileName:         file.name,
+          sharedDocumentId: result.id,
+          totalPages:       result.totalPages,
+          semester:         currentSemester,
+          lastReadAt:       undefined,
+        })
+        setUploadMsg(result.existing
+          ? '✓ Datei bereits vorhanden – bestehende Version verknüpft (kein doppelter Speicher)'
+          : '✓ Studienbrief hochgeladen und im gemeinsamen Speicher abgelegt'
+        )
+      }
       setTimeout(() => setUploadMsg(null), 5000)
     } catch (err) {
       setUploadMsg(`Fehler beim Hochladen: ${(err as Error).message}`)
@@ -959,7 +964,7 @@ export default function DokumentePage() {
                       <label className="block text-xs font-medium th-text-2">Modul auswählen</label>
                       <select
                         className="th-input text-xs"
-                        value={addModuleId}
+                        value={addModuleId || data.modules[0]?.id || ''}
                         onChange={e => setAddModuleId(e.target.value)}
                       >
                         {data.modules.map(m => (
@@ -984,7 +989,14 @@ export default function DokumentePage() {
                     </div>
                   ) : (
                     <button
-                      onClick={() => { setAddingId(sd.id); if (!addModuleId && data.modules[0]) setAddModuleId(data.modules[0].id) }}
+                      onClick={() => {
+                        setAddingId(sd.id)
+                        // Pre-select the currently active module filter, otherwise first module
+                        const defaultModule = filterModuleId !== 'alle'
+                          ? filterModuleId
+                          : (data.modules[0]?.id || '')
+                        setAddModuleId(defaultModule)
+                      }}
                       className="mt-auto w-full py-2 text-xs font-semibold rounded-lg border-2 transition-colors th-text-2 hover:th-text"
                       style={{ borderColor: 'var(--th-accent)', color: 'var(--th-accent)' }}
                       disabled={data.modules.length === 0}

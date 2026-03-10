@@ -263,16 +263,14 @@ export function getAllSharedDocsMeta(): (SharedDocMeta & { user_count: number })
   return db.prepare(`
     SELECT s.id, s.file_name, s.file_hash, s.file_size, s.total_pages,
            s.uploaded_by, s.uploaded_at,
-           COUNT(DISTINCT json_extract(d.data, '$.sharedDocumentId')) FILTER (
-             WHERE json_extract(d.data, '$.sharedDocumentId') = s.id
-           ) as user_count
+           COUNT(DISTINCT d.user_id) as user_count
     FROM shared_documents s
     LEFT JOIN user_data d ON d.namespace = 'documents'
       AND json_extract(d.data, '$.sharedDocumentId') = s.id
     GROUP BY s.id
     ORDER BY s.uploaded_at DESC
-  `).all() as (SharedDocMeta & { user_count: number })[]
-}
+  `).all() as (SharedDocMeta & { user_count: number })[]}
+
 
 /** Which users reference a given shared document */
 export function getSharedDocUsers(id: string): { user_id: string; username: string; name: string }[] {
