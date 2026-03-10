@@ -7,7 +7,7 @@ import { de } from 'date-fns/locale'
 import {
   Upload, FileText, Trash2, Bookmark as BookmarkIcon, BookmarkCheck,
   ChevronLeft, ChevronRight, ZoomIn, ZoomOut, X, Plus, ArrowLeft,
-  StickyNote, Pencil, Check,
+  StickyNote, Pencil, Check, PanelLeft,
 } from 'lucide-react'
 import * as pdfjsLib from 'pdfjs-dist'
 import { getNextSemesters } from '../data/fernuniModules'
@@ -146,6 +146,7 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
   const [noteText, setNoteText] = useState('')
   const [showBookmarkInput, setShowBookmarkInput] = useState(false)
   const [bookmarkLabel, setBookmarkLabel] = useState('')
+  const [showPanel, setShowPanel] = useState(() => window.innerWidth >= 768)
   const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null)
 
   // Keep refs for use in event handlers without stale closures
@@ -275,11 +276,52 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
 
   const pageNotes = doc.notes.filter(n => n.page === page)
 
+  const panelBadge = doc.bookmarks.length + doc.notes.length
+
   return (
-    <div className="flex h-full">
-      {/* Sidebar: bookmarks + notes */}
-      <div className="w-64 bg-white border-r border-[var(--th-border)] flex flex-col flex-shrink-0 overflow-hidden">
-        <div className="p-3 border-b bg-[var(--th-bg)]">
+    <div className="flex h-full overflow-hidden relative">
+
+      {/* ── Mobile backdrop ──────────────────────────────────────── */}
+      {showPanel && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-black/50"
+          style={{ backdropFilter: 'blur(2px)' }}
+          onClick={() => setShowPanel(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* ── Lesezeichen / Notizen Panel ─────────────────────────── */}
+      {/*
+          Mobile:  position:fixed, slides in from left as overlay
+          Desktop: static flex column (part of layout)
+      */}
+      <div
+        className={[
+          'flex flex-col bg-white overflow-hidden flex-shrink-0',
+          'border-r border-[var(--th-border)]',
+          // mobile: fixed overlay
+          'fixed top-0 bottom-0 left-0 z-50 w-[280px] shadow-2xl',
+          'transition-transform duration-250 ease-in-out',
+          // desktop: back to static
+          'md:relative md:z-auto md:w-64 md:shadow-none',
+          showPanel ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
+        ].join(' ')}
+      >
+        {/* Panel header (mobile only — close button) */}
+        <div className="md:hidden flex items-center justify-between px-3 py-3 border-b bg-slate-800 text-white flex-shrink-0">
+          <span className="text-sm font-semibold">Lesezeichen &amp; Notizen</span>
+          <button
+            onClick={() => setShowPanel(false)}
+            className="p-2 rounded-lg hover:bg-slate-700 transition-colors"
+            aria-label="Panel schließen"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Bookmarks */}
+        <div className="p-3 border-b bg-[var(--th-bg)] flex-shrink-0">
           <div className="text-xs font-semibold th-text-2 uppercase tracking-wide mb-2">Lesezeichen</div>
           <div className="space-y-1 max-h-48 overflow-y-auto">
             {doc.bookmarks.length === 0 ? (
@@ -287,14 +329,18 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
             ) : doc.bookmarks.map(bm => (
               <div key={bm.id} className="flex items-center gap-1 group">
                 <button
-                  onClick={() => goToPage(bm.page)}
-                  className="flex-1 text-left text-xs py-1 px-2 rounded hover:bg-blue-50 th-text-2"
+                  onClick={() => { goToPage(bm.page); if (window.innerWidth < 768) setShowPanel(false) }}
+                  className="flex-1 text-left text-xs py-1.5 px-2 rounded hover:bg-blue-50 th-text-2"
                 >
                   <span className="font-mono th-text-3 mr-1">S.{bm.page}</span>
                   {bm.label}
                 </button>
-                <button onClick={() => removeBookmark(bm.id)} className="opacity-0 group-hover:opacity-100 p-0.5 text-red-400 hover:text-red-600">
-                  <X size={10} />
+                <button
+                  onClick={() => removeBookmark(bm.id)}
+                  className="opacity-0 group-hover:opacity-100 p-1 text-red-400 hover:text-red-600 transition-opacity"
+                  aria-label="Lesezeichen entfernen"
+                >
+                  <X size={12} />
                 </button>
               </div>
             ))}
@@ -309,17 +355,18 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
             <div className="mt-2 flex gap-1">
               <input
                 autoFocus
-                className="flex-1 text-xs border border-[var(--th-border)] rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="flex-1 text-xs border border-[var(--th-border)] rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 placeholder="Bezeichnung..."
                 value={bookmarkLabel}
                 onChange={e => setBookmarkLabel(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && addBookmark()}
               />
-              <button onClick={addBookmark} className="px-2 py-1 bg-blue-600 text-white text-xs rounded">OK</button>
+              <button onClick={addBookmark} className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded font-medium">OK</button>
             </div>
           )}
         </div>
 
+        {/* Notes */}
         <div className="p-3 flex-1 overflow-y-auto">
           <div className="text-xs font-semibold th-text-2 uppercase tracking-wide mb-2">Notizen – Seite {page}</div>
           <div className="space-y-2">
@@ -342,51 +389,106 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
             <div className="mt-2">
               <textarea
                 autoFocus
-                className="w-full text-xs border border-[var(--th-border)] rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full text-xs border border-[var(--th-border)] rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 rows={3} placeholder="Notiz..."
                 value={noteText} onChange={e => setNoteText(e.target.value)}
               />
-              <button onClick={addNote} className="mt-1 w-full py-1 bg-blue-600 text-white text-xs rounded">Speichern</button>
+              <button onClick={addNote} className="mt-1 w-full py-1.5 bg-blue-600 text-white text-xs rounded font-medium">Speichern</button>
             </div>
           )}
         </div>
       </div>
 
-      {/* PDF canvas area */}
-      <div className="flex-1 flex flex-col bg-slate-700">
+      {/* ── PDF canvas area ──────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col bg-slate-700 min-w-0">
+
         {/* Toolbar */}
-        <div className="bg-slate-800 text-white flex items-center gap-3 px-4 py-2 flex-shrink-0">
-          <button onClick={() => goToPage(page - 1)} disabled={page <= 1} className="p-1 rounded hover:bg-slate-600 disabled:opacity-30" title="Vorherige Seite (←)">
+        <div className="bg-slate-800 text-white flex items-center gap-1 px-2 py-2 flex-shrink-0 flex-wrap">
+
+          {/* Panel toggle — prominent on mobile */}
+          <button
+            onClick={() => setShowPanel(v => !v)}
+            className={`relative p-2 rounded-lg transition-colors ${showPanel ? 'bg-blue-600 hover:bg-blue-500' : 'hover:bg-slate-600'}`}
+            title="Lesezeichen &amp; Notizen"
+            aria-label="Lesezeichen und Notizen ein-/ausblenden"
+            aria-pressed={showPanel}
+          >
+            <PanelLeft size={18} />
+            {panelBadge > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-yellow-400 text-slate-900 text-[10px] font-bold rounded-full flex items-center justify-center px-1 leading-none">
+                {panelBadge}
+              </span>
+            )}
+          </button>
+
+          <div className="w-px h-5 bg-slate-600 mx-1" />
+
+          {/* Page nav */}
+          <button
+            onClick={() => goToPage(page - 1)}
+            disabled={page <= 1}
+            className="p-2 rounded-lg hover:bg-slate-600 disabled:opacity-30 transition-colors"
+            title="Vorherige Seite (←)"
+          >
             <ChevronLeft size={18} />
           </button>
-          <span className="text-sm">
+          <span className="text-sm flex items-center gap-1 px-1">
             <input
               type="number" min={1} max={totalPages}
               value={page}
               onChange={e => goToPage(parseInt(e.target.value) || 1)}
-              className="w-12 bg-slate-700 text-center rounded px-1 py-0.5 text-sm"
-            /> / {totalPages}
+              className="w-10 bg-slate-700 text-center rounded px-1 py-0.5 text-sm"
+            />
+            <span className="text-slate-400">/</span>
+            <span>{totalPages}</span>
           </span>
-          <button onClick={() => goToPage(page + 1)} disabled={page >= totalPages} className="p-1 rounded hover:bg-slate-600 disabled:opacity-30" title="Nächste Seite (→)">
+          <button
+            onClick={() => goToPage(page + 1)}
+            disabled={page >= totalPages}
+            className="p-2 rounded-lg hover:bg-slate-600 disabled:opacity-30 transition-colors"
+            title="Nächste Seite (→)"
+          >
             <ChevronRight size={18} />
           </button>
-          <div className="w-px h-5 bg-slate-600" />
-          <button onClick={() => setScale(s => Math.min(3, +(s + 0.2).toFixed(1)))} className="p-1 rounded hover:bg-slate-600"><ZoomIn size={18} /></button>
-          <span className="text-xs th-text-3 w-10 text-center">{Math.round(scale * 100)}%</span>
-          <button onClick={() => setScale(s => Math.max(0.5, +(s - 0.2).toFixed(1)))} className="p-1 rounded hover:bg-slate-600"><ZoomOut size={18} /></button>
-          <div className="w-px h-5 bg-slate-600" />
+
+          <div className="w-px h-5 bg-slate-600 mx-1" />
+
+          {/* Zoom */}
+          <button onClick={() => setScale(s => Math.min(3, +(s + 0.2).toFixed(1)))} className="p-2 rounded-lg hover:bg-slate-600 transition-colors" title="Vergrößern">
+            <ZoomIn size={18} />
+          </button>
+          <span className="text-xs text-slate-400 w-9 text-center tabular-nums">{Math.round(scale * 100)}%</span>
+          <button onClick={() => setScale(s => Math.max(0.5, +(s - 0.2).toFixed(1)))} className="p-2 rounded-lg hover:bg-slate-600 transition-colors" title="Verkleinern">
+            <ZoomOut size={18} />
+          </button>
+
+          <div className="w-px h-5 bg-slate-600 mx-1" />
+
+          {/* Bookmark current page */}
           <button
-            onClick={() => isBookmarked ? removeBookmark(doc.bookmarks.find(b => b.page === page)!.id) : setShowBookmarkInput(true)}
-            className={`p-1 rounded hover:bg-slate-600 ${isBookmarked ? 'text-yellow-400' : ''}`}
+            onClick={() => isBookmarked
+              ? removeBookmark(doc.bookmarks.find(b => b.page === page)!.id)
+              : setShowBookmarkInput(true)
+            }
+            className={`p-2 rounded-lg hover:bg-slate-600 transition-colors ${isBookmarked ? 'text-yellow-400' : ''}`}
             title={isBookmarked ? 'Lesezeichen entfernen' : 'Lesezeichen hinzufügen'}
           >
             {isBookmarked ? <BookmarkCheck size={18} /> : <BookmarkIcon size={18} />}
           </button>
-          <button onClick={() => setShowNoteInput(true)} className="p-1 rounded hover:bg-slate-600" title="Notiz hinzufügen">
+
+          {/* Add note */}
+          <button
+            onClick={() => setShowNoteInput(true)}
+            className="p-2 rounded-lg hover:bg-slate-600 transition-colors"
+            title="Notiz hinzufügen"
+          >
             <StickyNote size={18} />
           </button>
+
           <div className="flex-1" />
-          <div className="text-xs th-text-3 bg-slate-700 px-2 py-1 rounded">
+
+          {/* Progress */}
+          <div className="text-xs text-slate-400 bg-slate-700 px-2 py-1 rounded tabular-nums hidden sm:block">
             {Math.round((page / totalPages) * 100)}% gelesen
           </div>
         </div>
@@ -399,18 +501,18 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
         {/* Canvas scroll area */}
         <div
           ref={scrollAreaRef}
-          className="flex-1 overflow-auto p-6 flex justify-center"
+          className="flex-1 overflow-auto p-4 md:p-6 flex justify-center"
           onWheel={handleWheel}
         >
           {loading ? (
-            <div className="flex items-center justify-center h-full text-white/60">PDF wird geladen...</div>
+            <div className="flex items-center justify-center h-full text-white/60 text-sm">PDF wird geladen…</div>
           ) : (
             <canvas ref={canvasRef} className="shadow-2xl" style={{ maxWidth: '100%', height: 'auto' }} />
           )}
         </div>
 
-        {/* Page turn hint */}
-        <div className="bg-slate-800/60 text-center text-xs th-text-2 py-1 flex-shrink-0">
+        {/* Page turn hint — hidden on mobile to save space */}
+        <div className="hidden sm:block bg-slate-800/60 text-center text-xs text-slate-400 py-1 flex-shrink-0">
           ← → oder Mausrad am Seitenrand zum Blättern
         </div>
       </div>
