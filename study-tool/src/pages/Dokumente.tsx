@@ -147,6 +147,8 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
   const [showBookmarkInput, setShowBookmarkInput] = useState(false)
   const [bookmarkLabel, setBookmarkLabel] = useState('')
   const [showPanel, setShowPanel] = useState(() => window.innerWidth >= 768)
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+  const [editingNoteText, setEditingNoteText] = useState('')
   const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null)
 
   // Keep refs for use in event handlers without stale closures
@@ -274,6 +276,22 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
     setShowNoteInput(false)
   }
 
+  const removeNote = (id: string) => {
+    onUpdate({ ...doc, notes: doc.notes.filter(n => n.id !== id) })
+  }
+
+  const startEditNote = (id: string, text: string) => {
+    setEditingNoteId(id)
+    setEditingNoteText(text)
+  }
+
+  const saveEditNote = () => {
+    if (!editingNoteId || !editingNoteText.trim()) return
+    onUpdate({ ...doc, notes: doc.notes.map(n => n.id === editingNoteId ? { ...n, text: editingNoteText.trim() } : n) })
+    setEditingNoteId(null)
+    setEditingNoteText('')
+  }
+
   const pageNotes = doc.notes.filter(n => n.page === page)
 
   const panelBadge = doc.bookmarks.length + doc.notes.length
@@ -373,9 +391,61 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
             {pageNotes.length === 0 ? (
               <div className="text-xs th-text-3 text-center py-2">Keine Notizen für diese Seite</div>
             ) : pageNotes.map(note => (
-              <div key={note.id} className="bg-yellow-50 border border-yellow-200 rounded p-2 text-xs th-text-2">
-                {note.text}
-                <div className="th-text-3 mt-1">{format(new Date(note.createdAt), 'dd.MM.yyyy HH:mm')}</div>
+              <div key={note.id} className="bg-yellow-50 border border-yellow-200 rounded text-xs th-text-2 group">
+                {editingNoteId === note.id ? (
+                  <div className="p-2">
+                    <textarea
+                      autoFocus
+                      className="w-full text-xs border border-yellow-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white resize-none"
+                      rows={3}
+                      value={editingNoteText}
+                      onChange={e => setEditingNoteText(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveEditNote() }}
+                    />
+                    <div className="flex gap-1 mt-1">
+                      <button
+                        onClick={saveEditNote}
+                        className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-blue-600 text-white rounded font-medium"
+                        style={{ minHeight: '2rem' }}
+                      >
+                        <Check size={12} /> Speichern
+                      </button>
+                      <button
+                        onClick={() => setEditingNoteId(null)}
+                        className="flex items-center justify-center px-2 py-1.5 rounded hover:bg-yellow-100 th-text-3"
+                        style={{ minHeight: '2rem' }}
+                        aria-label="Abbrechen"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-2">
+                    <div className="whitespace-pre-wrap">{note.text}</div>
+                    <div className="flex items-center justify-between mt-1.5">
+                      <span className="th-text-3">{format(new Date(note.createdAt), 'dd.MM.yyyy HH:mm')}</span>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => startEditNote(note.id, note.text)}
+                          className="p-1 text-blue-500 hover:text-blue-700 rounded hover:bg-blue-50 transition-colors"
+                          aria-label="Notiz bearbeiten"
+                          style={{ minWidth: '1.75rem', minHeight: '1.75rem' }}
+                        >
+                          <Pencil size={12} />
+                        </button>
+                        <button
+                          onClick={() => removeNote(note.id)}
+                          className="p-1 text-red-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors"
+                          aria-label="Notiz löschen"
+                          style={{ minWidth: '1.75rem', minHeight: '1.75rem' }}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
