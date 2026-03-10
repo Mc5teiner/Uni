@@ -10,7 +10,7 @@
 
 import type {
   AppData, StudyModule, StudyDocument, Flashcard, FlashcardDeck,
-  CalendarEvent, StudySession, StudyGoal,
+  CalendarEvent, StudySession, StudyGoal, SharedDocument, SharedDocAdmin,
 } from '../types'
 
 export interface PublicUser {
@@ -268,6 +268,39 @@ export const caldav = {
   testConnection: (body: { serverUrl: string; username: string; password: string }) =>
     req<{ ok: boolean; discoveredUrl?: string }>('POST', '/api/caldav/test', body),
   fetchEvents:    () => req<CaldavEvent[]>('GET', '/api/caldav/events'),
+}
+
+// ─── Shared Documents ────────────────────────────────────────────────────────
+
+export const sharedDocuments = {
+  /** Upload a PDF (base64). Returns existing id if the same file was already uploaded. */
+  upload: (fileName: string, fileData: string) =>
+    req<{ id: string; existing: boolean; totalPages: number }>(
+      'POST', '/api/shared-documents', { fileName, fileData }
+    ),
+
+  /** Get a single shared document including its base64 fileData. */
+  get: (id: string) =>
+    req<SharedDocument>('GET', `/api/shared-documents/${id}`),
+
+  /** Update the total page count after the PDF has been rendered. */
+  updatePages: (id: string, totalPages: number) =>
+    req<{ ok: boolean }>('PATCH', `/api/shared-documents/${id}/pages`, { totalPages }),
+}
+
+// ─── Admin: Shared Documents ─────────────────────────────────────────────────
+
+export const adminSharedDocs = {
+  list: () =>
+    req<SharedDocAdmin[]>('GET', '/api/admin/shared-documents'),
+
+  getUsers: (id: string) =>
+    req<{ user_id: string; username: string; name: string }[]>(
+      'GET', `/api/admin/shared-documents/${id}/users`
+    ),
+
+  delete: (id: string, force = false) =>
+    req<{ ok: boolean }>('DELETE', `/api/admin/shared-documents/${id}${force ? '?force=1' : ''}`),
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

@@ -7,10 +7,11 @@ import { de } from 'date-fns/locale'
 import {
   Upload, FileText, Trash2, Bookmark as BookmarkIcon, BookmarkCheck,
   ChevronLeft, ChevronRight, ZoomIn, ZoomOut, X, Plus, ArrowLeft,
-  StickyNote, Pencil, Check, PanelLeft,
+  StickyNote, Pencil, Check, PanelLeft, Share2,
 } from 'lucide-react'
 import * as pdfjsLib from 'pdfjs-dist'
 import { getNextSemesters } from '../data/fernuniModules'
+import { sharedDocuments as sharedDocsApi } from '../api/client'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString()
 
@@ -18,38 +19,49 @@ const SEMESTER_OPTIONS = getNextSemesters(10)
 
 // ─── PDF Thumbnail ────────────────────────────────────────────────────────────
 
-function PDFThumbnail({ fileData }: { fileData: string }) {
+function PDFThumbnail({ doc }: { doc: StudyDocument }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [loaded, setLoaded] = useState(false)
+  const [error, setError]   = useState(false)
 
   useEffect(() => {
     let cancelled = false
-    const load = async () => {
+    const render = async (fileData: string) => {
       try {
-        const data = atob(fileData)
-        const bytes = new Uint8Array(data.length)
-        for (let i = 0; i < data.length; i++) bytes[i] = data.charCodeAt(i)
-        const pdf = await pdfjsLib.getDocument({ data: bytes }).promise
+        const binary = atob(fileData)
+        const bytes  = new Uint8Array(binary.length)
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+        const pdf      = await pdfjsLib.getDocument({ data: bytes }).promise
         if (cancelled) return
-        const pdfPage = await pdf.getPage(1)
+        const pdfPage  = await pdf.getPage(1)
         if (cancelled) return
         const viewport = pdfPage.getViewport({ scale: 0.4 })
-        const canvas = canvasRef.current
+        const canvas   = canvasRef.current
         if (!canvas) return
-        canvas.width = viewport.width
+        canvas.width  = viewport.width
         canvas.height = viewport.height
-        const ctx = canvas.getContext('2d')!
+        const ctx     = canvas.getContext('2d')!
         await pdfPage.render({ canvasContext: ctx, viewport, canvas }).promise
         if (!cancelled) setLoaded(true)
-      } catch { /* ignore */ }
+      } catch { if (!cancelled) setError(true) }
     }
-    load()
+
+    if (doc.fileData) {
+      // Legacy: inline base64
+      render(doc.fileData)
+    } else if (doc.sharedDocumentId) {
+      // New: fetch from shared-documents API
+      sharedDocsApi.get(doc.sharedDocumentId)
+        .then(sd => { if (!cancelled && sd.fileData) render(sd.fileData) })
+        .catch(() => { if (!cancelled) setError(true) })
+    }
     return () => { cancelled = true }
-  }, [fileData])
+  }, [doc.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="w-full bg-[var(--th-bg-secondary,#f1f5f9)] rounded-lg overflow-hidden flex items-center justify-center" style={{ aspectRatio: '3/4' }}>
-      {!loaded && <FileText size={28} className="text-slate-300" />}
+      {!loaded && !error && <FileText size={28} className="text-slate-300" />}
+      {error && <FileText size={28} className="text-slate-300 opacity-40" />}
       <canvas
         ref={canvasRef}
         style={{ display: loaded ? 'block' : 'none', width: '100%', height: '100%', objectFit: 'contain' }}
@@ -142,6 +154,7 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
   const [totalPages, setTotalPages] = useState(doc.totalPages || 1)
   const [scale, setScale] = useState(1.2)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [showNoteInput, setShowNoteInput] = useState(false)
   const [noteText, setNoteText] = useState('')
   const [showBookmarkInput, setShowBookmarkInput] = useState(false)
@@ -157,27 +170,48 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
   const totalPagesRef = useRef(totalPages)
   totalPagesRef.current = totalPages
 
-  // Load PDF
+  // Load PDF — supports both legacy inline fileData and shared document references
   useEffect(() => {
-    const loadPDF = async () => {
+    let cancelled = false
+    const loadFromBase64 = async (fileData: string) => {
       try {
-        const data = atob(doc.fileData)
-        const bytes = new Uint8Array(data.length)
-        for (let i = 0; i < data.length; i++) bytes[i] = data.charCodeAt(i)
+        const binary = atob(fileData)
+        const bytes  = new Uint8Array(binary.length)
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
         const pdf = await pdfjsLib.getDocument({ data: bytes }).promise
+        if (cancelled) return
         setPdfDoc(pdf)
         setTotalPages(pdf.numPages)
         if (doc.totalPages !== pdf.numPages) {
           onUpdate({ ...doc, totalPages: pdf.numPages })
+          // Also update page count on the shared document (best-effort)
+          if (doc.sharedDocumentId) {
+            sharedDocsApi.updatePages(doc.sharedDocumentId, pdf.numPages).catch(() => {/* ignore */})
+          }
         }
         setLoading(false)
       } catch (e) {
         console.error('PDF load error', e)
-        setLoading(false)
+        if (!cancelled) { setLoadError(true); setLoading(false) }
       }
     }
-    loadPDF()
-  }, [doc.fileData])
+
+    setLoading(true)
+    setLoadError(false)
+
+    if (doc.fileData) {
+      // Legacy: inline base64
+      loadFromBase64(doc.fileData)
+    } else if (doc.sharedDocumentId) {
+      sharedDocsApi.get(doc.sharedDocumentId)
+        .then(sd => { if (!cancelled && sd.fileData) loadFromBase64(sd.fileData) })
+        .catch(() => { if (!cancelled) { setLoadError(true); setLoading(false) } })
+    } else {
+      setLoadError(true)
+      setLoading(false)
+    }
+    return () => { cancelled = true }
+  }, [doc.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Render current page
   const renderPage = useCallback(async () => {
@@ -576,6 +610,11 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
         >
           {loading ? (
             <div className="flex items-center justify-center h-full text-white/60 text-sm">PDF wird geladen…</div>
+          ) : loadError ? (
+            <div className="flex flex-col items-center justify-center h-full text-white/60 text-sm gap-3">
+              <FileText size={40} className="opacity-30" />
+              <span>PDF konnte nicht geladen werden.</span>
+            </div>
           ) : (
             <canvas ref={canvasRef} className="shadow-2xl" style={{ maxWidth: '100%', height: 'auto' }} />
           )}
@@ -597,6 +636,8 @@ export default function DokumentePage() {
   const [activeDoc, setActiveDoc] = useState<StudyDocument | null>(null)
   const [filterModuleId, setFilterModuleId] = useState<string>('alle')
   const [editingDoc, setEditingDoc] = useState<StudyDocument | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadMsg, setUploadMsg] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const currentSemester = SEMESTER_OPTIONS[0]
@@ -606,22 +647,40 @@ export default function DokumentePage() {
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !file.type.includes('pdf')) return
-
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      const base64 = (ev.target?.result as string).split(',')[1]
-      createDocument({
-        moduleId: filterModuleId === 'alle' ? (data.modules[0]?.id ?? '') : filterModuleId,
-        name: file.name.replace(/\.pdf$/i, ''),
-        fileName: file.name,
-        fileData: base64,
-        totalPages: 0,
-        semester: currentSemester,
-        lastReadAt: undefined,
-      })
-    }
-    reader.readAsDataURL(file)
     e.target.value = ''
+
+    setUploading(true)
+    setUploadMsg(null)
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload  = ev => resolve((ev.target?.result as string).split(',')[1])
+        reader.onerror = () => reject(new Error('Lesefehler'))
+        reader.readAsDataURL(file)
+      })
+
+      const result = await sharedDocsApi.upload(file.name, base64)
+
+      createDocument({
+        moduleId:         filterModuleId === 'alle' ? (data.modules[0]?.id ?? '') : filterModuleId,
+        name:             file.name.replace(/\.pdf$/i, ''),
+        fileName:         file.name,
+        sharedDocumentId: result.id,
+        totalPages:       result.totalPages,
+        semester:         currentSemester,
+        lastReadAt:       undefined,
+      })
+
+      setUploadMsg(result.existing
+        ? '✓ Datei bereits vorhanden – bestehende Version verknüpft (kein doppelter Speicher)'
+        : '✓ Studienbrief hochgeladen und im gemeinsamen Speicher abgelegt'
+      )
+      setTimeout(() => setUploadMsg(null), 5000)
+    } catch (err) {
+      setUploadMsg(`Fehler beim Hochladen: ${(err as Error).message}`)
+    } finally {
+      setUploading(false)
+    }
   }
 
   const handleUpdate = (d: StudyDocument) => {
@@ -668,19 +727,32 @@ export default function DokumentePage() {
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold th-text">Studienbriefe</h1>
           <p className="text-sm th-text-2 mt-1">{data.documents.length} Dokumente</p>
         </div>
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="flex items-center gap-2 px-4 py-2 th-btn th-btn-primary transition-colors text-sm font-medium"
+          disabled={uploading}
+          className="flex items-center gap-2 px-4 py-2 th-btn th-btn-primary transition-colors text-sm font-medium disabled:opacity-60"
         >
-          <Upload size={16} /> PDF hochladen
+          <Upload size={16} /> {uploading ? 'Hochladen…' : 'PDF hochladen'}
         </button>
         <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={handleUpload} />
       </div>
+
+      {/* Upload status */}
+      {uploadMsg && (
+        <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl mb-4 text-sm ${
+          uploadMsg.startsWith('Fehler')
+            ? 'bg-red-50 text-red-700 border border-red-200'
+            : 'bg-green-50 text-green-700 border border-green-200'
+        }`}>
+          <Share2 size={14} className="flex-shrink-0" />
+          {uploadMsg}
+        </div>
+      )}
 
       {/* Module filter */}
       <div className="flex gap-2 mb-6 flex-wrap">
@@ -718,14 +790,14 @@ export default function DokumentePage() {
 
                 {/* Cover thumbnail */}
                 <div className="p-3 pb-0">
-                  <PDFThumbnail fileData={doc.fileData} />
+                  <PDFThumbnail doc={doc} />
                 </div>
 
                 {/* Info */}
                 <div className="p-3 flex-1 flex flex-col">
                   <h3 className="font-medium th-text text-sm line-clamp-2 leading-snug mb-2">{doc.name}</h3>
 
-                  {/* Module + semester */}
+                  {/* Module + semester + shared indicator */}
                   <div className="flex items-center gap-1 flex-wrap mb-2">
                     {module && (
                       <span className="text-xs px-1.5 py-0.5 rounded text-white shrink-0" style={{ backgroundColor: module.color }}>
@@ -734,6 +806,11 @@ export default function DokumentePage() {
                     )}
                     {doc.semester && (
                       <span className="text-xs th-text-3">{doc.semester}</span>
+                    )}
+                    {doc.sharedDocumentId && (
+                      <span className="text-xs flex items-center gap-0.5 text-teal-600" title="Im gemeinsamen Speicher abgelegt">
+                        <Share2 size={10} /> Geteilt
+                      </span>
                     )}
                   </div>
 
@@ -774,12 +851,18 @@ export default function DokumentePage() {
                     Bearbeiten
                   </button>
                   <button
-                    onClick={() => { if (confirm('Dokument löschen?')) removeDocument(doc.id) }}
+                    onClick={() => {
+                      if (confirm(
+                        doc.sharedDocumentId
+                          ? `"${doc.name}" aus deiner Ansicht entfernen?\n\nDie PDF-Datei bleibt im gemeinsamen Speicher erhalten und kann jederzeit erneut hochgeladen werden.`
+                          : `Dokument "${doc.name}" löschen?`
+                      )) removeDocument(doc.id)
+                    }}
                     className="th-card-action-btn th-card-action-delete"
-                    aria-label={`"${doc.name}" löschen`}
+                    aria-label={`"${doc.name}" entfernen`}
                   >
                     <Trash2 size={15} aria-hidden="true" />
-                    Löschen
+                    Entfernen
                   </button>
                 </div>
               </div>

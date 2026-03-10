@@ -1,7 +1,10 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { v4 as uuidv4 } from 'uuid'
-import { db, getSettings, getUserStorageBytes, getAllUsersStorage, auditLog } from '../db'
+import {
+  db, getSettings, getUserStorageBytes, getAllUsersStorage, auditLog,
+  getAllSharedDocsMeta, getSharedDocUsers, deleteSharedDoc, getSharedDocMeta, getSharedDocsBytes,
+} from '../db'
 import { hashPassword, generateToken } from '../crypto'
 import { requireAdmin } from '../middleware/auth'
 import { sendWelcomeEmail } from '../email'
@@ -226,6 +229,7 @@ router.get('/storage', (_req, res) => {
 
   res.json({
     totalBytes: total,
+    sharedDocsBytes: getSharedDocsBytes(),
     users: users.map(u => ({
       id: u.id,
       username: u.username,
@@ -397,6 +401,48 @@ router.get('/audit', (req, res) => {
       ).all(limit, offset)
 
   res.json(rows)
+})
+
+// ─── Shared documents (admin) ─────────────────────────────────────────────────
+
+/** List all shared docs with usage stats */
+router.get('/shared-documents', (_req, res) => {
+  const docs = getAllSharedDocsMeta()
+  res.json(docs.map(d => ({
+    id:          d.id,
+    fileName:    d.file_name,
+    fileHash:    d.file_hash,
+    fileSize:    d.file_size,
+    totalPages:  d.total_pages,
+    uploadedBy:  d.uploaded_by,
+    uploadedAt:  d.uploaded_at,
+    userCount:   d.user_count,
+  })))
+})
+
+/** Which users reference a shared document */
+router.get('/shared-documents/:id/users', (req, res) => {
+  const meta = getSharedDocMeta(req.params.id)
+  if (!meta) { res.status(404).json({ error: 'Dokument nicht gefunden' }); return }
+  res.json(getSharedDocUsers(req.params.id))
+})
+
+/** Delete a shared document (only if not in use, or force with ?force=1) */
+router.delete('/shared-documents/:id', (req, res) => {
+  const meta = getSharedDocMeta(req.params.id)
+  if (!meta) { res.status(404).json({ error: 'Dokument nicht gefunden' }); return }
+
+  const users = getSharedDocUsers(req.params.id)
+  if (users.length > 0 && req.query.force !== '1') {
+    res.status(409).json({
+      error: `Dokument wird noch von ${users.length} Benutzer(n) verwendet.`,
+      userCount: users.length,
+    })
+    return
+  }
+
+  deleteSharedDoc(req.params.id)
+  res.json({ ok: true })
 })
 
 export default router
