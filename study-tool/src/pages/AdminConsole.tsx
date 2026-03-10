@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { admin, settings as settingsApi, formatBytes, type AdminUser } from '../api/client'
+import { admin, settings as settingsApi, adminSharedDocs, formatBytes, type AdminUser } from '../api/client'
+import type { SharedDocAdmin } from '../types'
 import {
   Users, HardDrive, Shield, ShieldOff, Trash2, Plus, Key,
   RefreshCw, Settings, Mail, Check, X, ChevronRight, Eye, EyeOff,
-  AlertTriangle, Globe, Lock, Download, Database, User as UserIcon,
+  AlertTriangle, Globe, Lock, Download, Database, User as UserIcon, Share2, FileText,
 } from 'lucide-react'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -529,13 +530,211 @@ function BackupTab({ users }: { users: AdminUser[] }) {
   )
 }
 
+// ─── Shared Documents Tab ────────────────────────────────────────────────────
+
+function SharedDocsTab() {
+  const [docs, setDocs]         = useState<SharedDocAdmin[]>([])
+  const [loading, setLoading]   = useState(true)
+  const [deleting, setDeleting] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState<string | null>(null)
+  const [users, setUsers]       = useState<Record<string, { user_id: string; username: string; name: string }[]>>({})
+
+  const load = async () => {
+    setLoading(true)
+    try { setDocs(await adminSharedDocs.list()) }
+    catch { /* ignore */ }
+    finally { setLoading(false) }
+  }
+
+  useEffect(() => { void load() }, [])
+
+  const toggleExpand = async (id: string) => {
+    if (expanded === id) { setExpanded(null); return }
+    setExpanded(id)
+    if (!users[id]) {
+      try {
+        const u = await adminSharedDocs.getUsers(id)
+        setUsers(prev => ({ ...prev, [id]: u }))
+      } catch { /* ignore */ }
+    }
+  }
+
+  const handleDelete = async (doc: SharedDocAdmin, force: boolean) => {
+    if (!confirm(
+      force
+        ? `"${doc.fileName}" wirklich löschen? Es gibt noch ${doc.userCount} aktive Referenz(en).\n\nBenutzer die dieses Dokument verwenden können es dann nicht mehr öffnen.`
+        : `"${doc.fileName}" löschen?`
+    )) return
+
+    setDeleting(doc.id)
+    try {
+      await adminSharedDocs.delete(doc.id, force)
+      await load()
+    } catch (err) {
+      alert((err as Error).message)
+    } finally {
+      setDeleting(null)
+    }
+  }
+
+  const totalSize = docs.reduce((s, d) => s + d.fileSize, 0)
+  const unusedDocs = docs.filter(d => d.userCount === 0)
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16 th-text-3">
+        <RefreshCw size={20} className="animate-spin mr-2" /> Lade…
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Summary */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="th-card p-4 text-center">
+          <div className="text-2xl font-bold th-text">{docs.length}</div>
+          <div className="text-xs th-text-2 mt-1">Gesamt Dateien</div>
+        </div>
+        <div className="th-card p-4 text-center">
+          <div className="text-2xl font-bold th-text">{formatBytes(totalSize)}</div>
+          <div className="text-xs th-text-2 mt-1">Gesamt Speicher</div>
+        </div>
+        <div className="th-card p-4 text-center">
+          <div className={`text-2xl font-bold ${unusedDocs.length > 0 ? 'text-amber-600' : 'th-text'}`}>
+            {unusedDocs.length}
+          </div>
+          <div className="text-xs th-text-2 mt-1">Ungenutzte Dateien</div>
+        </div>
+      </div>
+
+      {/* Unused hint */}
+      {unusedDocs.length > 0 && (
+        <div className="flex items-start gap-3 px-4 py-3 rounded-xl text-sm bg-amber-50 border border-amber-200 text-amber-800">
+          <AlertTriangle size={16} className="flex-shrink-0 mt-0.5" />
+          <span>
+            {unusedDocs.length} Datei(en) werden von keinem Benutzer mehr referenziert und können bedenkenlos gelöscht werden.
+          </span>
+        </div>
+      )}
+
+      {/* Document list */}
+      <div className="th-card shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b bg-[var(--th-bg)] flex items-center justify-between">
+          <span className="text-sm font-medium th-text-2">Geteilte Studienbriefe</span>
+          <button
+            onClick={load}
+            className="p-1.5 rounded hover:bg-[var(--th-bg-secondary)] th-text-3"
+            aria-label="Aktualisieren"
+          >
+            <RefreshCw size={14} />
+          </button>
+        </div>
+
+        {docs.length === 0 ? (
+          <div className="text-center py-12 th-text-3 text-sm">
+            <FileText size={36} className="mx-auto mb-3 opacity-30" />
+            Noch keine geteilten Studienbriefe.
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {docs.map(doc => {
+              const isUnused = doc.userCount === 0
+              const isExpanded = expanded === doc.id
+              return (
+                <div key={doc.id}>
+                  <div className={`px-4 py-3 ${isUnused ? 'bg-amber-50/60' : ''}`}>
+                    <div className="flex items-start gap-3">
+                      <div className={`p-2 rounded-lg flex-shrink-0 ${isUnused ? 'bg-amber-100 text-amber-600' : 'bg-blue-50 text-blue-500'}`}>
+                        <FileText size={16} />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium th-text text-sm truncate">{doc.fileName}</span>
+                          {isUnused && (
+                            <span className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium">
+                              Ungenutzt
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 flex-wrap">
+                          <span className="text-xs th-text-3">{formatBytes(doc.fileSize)}</span>
+                          {doc.totalPages > 0 && (
+                            <span className="text-xs th-text-3">{doc.totalPages} Seiten</span>
+                          )}
+                          <button
+                            onClick={() => toggleExpand(doc.id)}
+                            className="text-xs th-text-3 hover:th-text-2 flex items-center gap-1"
+                          >
+                            <Users size={10} />
+                            <span className={doc.userCount > 0 ? 'text-blue-600 font-medium' : ''}>
+                              {doc.userCount} Benutzer
+                            </span>
+                            <ChevronRight size={10} className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                          </button>
+                          <span className="text-xs th-text-3 hidden sm:inline">
+                            Hochgeladen {new Date(doc.uploadedAt * 1000).toLocaleDateString('de-DE')}
+                          </span>
+                        </div>
+
+                        {/* Expanded user list */}
+                        {isExpanded && (
+                          <div className="mt-2 pl-1">
+                            {users[doc.id]
+                              ? users[doc.id].length === 0
+                                ? <span className="text-xs th-text-3">Kein Benutzer referenziert diese Datei.</span>
+                                : (
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {users[doc.id].map(u => (
+                                      <span key={u.user_id} className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full">
+                                        {u.name || u.username}
+                                        <span className="text-blue-400 ml-1">({u.username})</span>
+                                      </span>
+                                    ))}
+                                  </div>
+                                )
+                              : <span className="text-xs th-text-3">Lade…</span>
+                            }
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Delete button */}
+                      <button
+                        onClick={() => handleDelete(doc, doc.userCount > 0)}
+                        disabled={deleting === doc.id}
+                        className={`flex-shrink-0 p-2 rounded-lg transition-colors ${
+                          isUnused
+                            ? 'text-red-500 hover:bg-red-50'
+                            : 'text-slate-400 hover:text-red-500 hover:bg-red-50'
+                        }`}
+                        title={isUnused ? 'Löschen' : `Löschen (${doc.userCount} Benutzer betroffen)`}
+                      >
+                        {deleting === doc.id
+                          ? <RefreshCw size={16} className="animate-spin" />
+                          : <Trash2 size={16} />
+                        }
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Admin Console ───────────────────────────────────────────────────────
 
 export default function AdminConsolePage() {
   const [users,    setUsers]   = useState<AdminUser[]>([])
-  const [storage,  setStorage] = useState<{ totalBytes: number; users: { id: string; username: string; used: number; limit: number; percentage: number }[] } | null>(null)
+  const [storage,  setStorage] = useState<{ totalBytes: number; sharedDocsBytes?: number; users: { id: string; username: string; used: number; limit: number; percentage: number }[] } | null>(null)
   const [loading,  setLoading] = useState(true)
-  const [tab,      setTab]     = useState<'users' | 'storage' | 'backup'>('users')
+  const [tab,      setTab]     = useState<'users' | 'storage' | 'shared' | 'backup'>('users')
   const [editUser, setEditUser] = useState<AdminUser | undefined>()
   const [showCreate, setShowCreate] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
@@ -603,7 +802,7 @@ export default function AdminConsolePage() {
 
       {/* Tabs */}
       <div className="flex gap-1 mb-5 bg-[var(--th-bg-secondary,#f1f5f9)] rounded-lg p-1 w-fit">
-        {([['users', Users, 'Benutzer'], ['storage', HardDrive, 'Speicher'], ['backup', Database, 'Backup']] as const).map(([id, Icon, label]) => (
+        {([['users', Users, 'Benutzer'], ['storage', HardDrive, 'Speicher'], ['shared', Share2, 'Studienbriefe'], ['backup', Database, 'Backup']] as const).map(([id, Icon, label]) => (
           <button key={id} onClick={() => setTab(id as typeof tab)}
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               tab === id ? 'bg-white th-text shadow-sm' : 'th-text-2 hover:th-text-2'
@@ -691,10 +890,18 @@ export default function AdminConsolePage() {
       ) : tab === 'storage' ? (
         /* ── Storage Tab ── */
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="th-card p-4 text-center">
               <div className="text-2xl font-bold th-text">{totalGb} GB</div>
-              <div className="text-xs th-text-2 mt-1">Gesamt genutzt</div>
+              <div className="text-xs th-text-2 mt-1">Benutzer-Daten</div>
+            </div>
+            <div className="th-card p-4 text-center">
+              <div className="text-2xl font-bold th-text">
+                {storage?.sharedDocsBytes != null ? formatBytes(storage.sharedDocsBytes) : '—'}
+              </div>
+              <div className="text-xs th-text-2 mt-1 flex items-center justify-center gap-1">
+                <Share2 size={10} /> Geteilte Briefe
+              </div>
             </div>
             <div className="th-card p-4 text-center">
               <div className="text-2xl font-bold th-text">{users.length}</div>
@@ -733,6 +940,9 @@ export default function AdminConsolePage() {
             </div>
           </div>
         </div>
+      ) : tab === 'shared' ? (
+        /* ── Shared Documents Tab ── */
+        <SharedDocsTab />
       ) : (
         /* ── Backup Tab ── */
         <BackupTab users={users} />
@@ -774,7 +984,7 @@ export default function AdminConsolePage() {
       )}
 
       {/* Unused imports suppressor */}
-      <span className="hidden"><Globe size={0} /><Lock size={0} /><Mail size={0} /><Check size={0} /></span>
+      <span className="hidden"><Globe size={0} /><Lock size={0} /><Mail size={0} /><Check size={0} /><FileText size={0} /></span>
     </div>
   )
 }

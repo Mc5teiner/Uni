@@ -41,12 +41,36 @@ export interface StudyModule {
 // PDF / Study Letters (Studienbriefe)
 // ============================================================
 
+/**
+ * A PDF file stored once on the server, shared across all users.
+ * Only admins see the full list; individual users fetch by ID when reading.
+ */
+export interface SharedDocument {
+  id: string
+  fileName: string
+  fileHash: string
+  fileSize: number
+  totalPages: number
+  uploadedBy: string | null
+  uploadedAt: number
+  fileData?: string   // only present when fetched by ID for reading
+  // admin-only
+  userCount?: number
+}
+
+/**
+ * A user's personal copy of a document reference.
+ * The PDF binary is stored in SharedDocument (referenced by sharedDocumentId).
+ * fileData is kept optional for backward-compatibility with legacy inline PDFs.
+ */
 export interface StudyDocument {
   id: string
   moduleId: string
   name: string
   fileName: string
-  fileData: string     // base64 encoded
+  /** @deprecated New documents use sharedDocumentId instead */
+  fileData?: string
+  sharedDocumentId?: string   // reference to SharedDocument
   totalPages: number
   currentPage: number
   semester?: string    // e.g. "WS 2025/26"
@@ -159,4 +183,13 @@ export interface AppData {
   sessions: StudySession[]
   goals: StudyGoal[]
   lastUpdated: string
+}
+
+// ============================================================
+// Admin-only: shared document usage
+// ============================================================
+
+export interface SharedDocAdmin extends SharedDocument {
+  userCount: number
+  users?: { user_id: string; username: string; name: string }[]
 }

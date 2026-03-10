@@ -57,11 +57,12 @@ bootstrapSecrets()
 import './db'
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
-import authRouter     from './routes/auth'
-import dataRouter     from './routes/data'
-import adminRouter    from './routes/admin'
-import settingsRouter from './routes/settings'
-import caldavRouter   from './routes/caldav'
+import authRouter           from './routes/auth'
+import dataRouter           from './routes/data'
+import adminRouter          from './routes/admin'
+import settingsRouter       from './routes/settings'
+import caldavRouter         from './routes/caldav'
+import sharedDocumentsRouter from './routes/sharedDocuments'
 
 const app  = express()
 const PORT = parseInt(process.env.PORT ?? '3000', 10)
@@ -103,8 +104,9 @@ app.use(cors({
 
 // ─── Body parsing ─────────────────────────────────────────────────────────────
 
-// Large limit for base64 PDFs stored in user data (max ~50 MB per request)
-app.use('/api/data', express.json({ limit: '52mb' }))
+// Large limit for base64 PDFs (user data + shared document uploads)
+app.use('/api/data',             express.json({ limit: '52mb' }))
+app.use('/api/shared-documents', express.json({ limit: '52mb' }))
 // Normal limit for all other routes
 app.use(express.json({ limit: '1mb' }))
 app.use(cookieParser())
@@ -136,11 +138,12 @@ app.use('/api/auth/forgot-password', forgotLimiter)
 
 // ─── API routes ───────────────────────────────────────────────────────────────
 
-app.use('/api/auth',     authRouter)
-app.use('/api/data',     dataRouter)
-app.use('/api/admin',    adminRouter)
-app.use('/api/settings', settingsRouter)
-app.use('/api/caldav',   caldavRouter)
+app.use('/api/auth',             authRouter)
+app.use('/api/data',             dataRouter)
+app.use('/api/admin',            adminRouter)
+app.use('/api/settings',         settingsRouter)
+app.use('/api/caldav',           caldavRouter)
+app.use('/api/shared-documents', sharedDocumentsRouter)
 
 // ─── Static frontend (production) ────────────────────────────────────────────
 

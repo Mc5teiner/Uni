@@ -92,12 +92,26 @@ CREATE TABLE IF NOT EXISTS audit_log (
   created_at     INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
+-- Shared PDF documents — stored once, referenced by many users
+CREATE TABLE IF NOT EXISTS shared_documents (
+  id           TEXT PRIMARY KEY,
+  file_name    TEXT NOT NULL,
+  file_data    TEXT NOT NULL,
+  file_hash    TEXT NOT NULL UNIQUE,
+  file_size    INTEGER NOT NULL DEFAULT 0,
+  total_pages  INTEGER NOT NULL DEFAULT 0,
+  uploaded_by  TEXT REFERENCES users(id) ON DELETE SET NULL,
+  uploaded_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at   INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
 CREATE INDEX IF NOT EXISTS idx_user_data_user   ON user_data(user_id);
 CREATE INDEX IF NOT EXISTS idx_refresh_user     ON refresh_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_user       ON audit_log(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_created    ON audit_log(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_refresh_hash     ON refresh_tokens(token_hash);
 CREATE INDEX IF NOT EXISTS idx_reset_hash       ON password_resets(token_hash);
+CREATE INDEX IF NOT EXISTS idx_shared_docs_hash ON shared_documents(file_hash);
 `
 
 db.exec(SCHEMA)
@@ -215,4 +229,86 @@ export function auditLog(
     opts.details ? JSON.stringify(opts.details) : null,
     opts.success !== false ? 1 : 0
   )
+}
+
+// ─── Shared documents ─────────────────────────────────────────────────────────
+
+export interface SharedDocMeta {
+  id: string
+  file_name: string
+  file_hash: string
+  file_size: number
+  total_pages: number
+  uploaded_by: string | null
+  uploaded_at: number
+}
+
+const SELECT_META = 'id, file_name, file_hash, file_size, total_pages, uploaded_by, uploaded_at'
+
+export function getSharedDocMeta(id: string): SharedDocMeta | undefined {
+  return db.prepare(`SELECT ${SELECT_META} FROM shared_documents WHERE id = ?`).get(id) as SharedDocMeta | undefined
+}
+
+export function getSharedDocData(id: string): string | undefined {
+  const row = db.prepare('SELECT file_data FROM shared_documents WHERE id = ?').get(id) as { file_data: string } | undefined
+  return row?.file_data
+}
+
+export function getSharedDocByHash(hash: string): SharedDocMeta | undefined {
+  return db.prepare(`SELECT ${SELECT_META} FROM shared_documents WHERE file_hash = ?`).get(hash) as SharedDocMeta | undefined
+}
+
+/** All shared docs with how many users currently reference each one */
+export function getAllSharedDocsMeta(): (SharedDocMeta & { user_count: number })[] {
+  return db.prepare(`
+    SELECT s.id, s.file_name, s.file_hash, s.file_size, s.total_pages,
+           s.uploaded_by, s.uploaded_at,
+           COUNT(DISTINCT json_extract(d.data, '$.sharedDocumentId')) FILTER (
+             WHERE json_extract(d.data, '$.sharedDocumentId') = s.id
+           ) as user_count
+    FROM shared_documents s
+    LEFT JOIN user_data d ON d.namespace = 'documents'
+      AND json_extract(d.data, '$.sharedDocumentId') = s.id
+    GROUP BY s.id
+    ORDER BY s.uploaded_at DESC
+  `).all() as (SharedDocMeta & { user_count: number })[]
+}
+
+/** Which users reference a given shared document */
+export function getSharedDocUsers(id: string): { user_id: string; username: string; name: string }[] {
+  return db.prepare(`
+    SELECT DISTINCT u.id as user_id, u.username, u.name
+    FROM user_data d
+    JOIN users u ON u.id = d.user_id
+    WHERE d.namespace = 'documents'
+      AND json_extract(d.data, '$.sharedDocumentId') = ?
+  `).all(id) as { user_id: string; username: string; name: string }[]
+}
+
+export function createSharedDoc(opts: {
+  id: string; fileName: string; fileData: string
+  fileHash: string; fileSize: number; uploadedBy: string
+}): void {
+  db.prepare(
+    `INSERT INTO shared_documents (id, file_name, file_data, file_hash, file_size, uploaded_by)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  ).run(opts.id, opts.fileName, opts.fileData, opts.fileHash, opts.fileSize, opts.uploadedBy)
+}
+
+export function updateSharedDocPages(id: string, totalPages: number): void {
+  db.prepare(
+    `UPDATE shared_documents SET total_pages = ?, updated_at = unixepoch() WHERE id = ?`
+  ).run(totalPages, id)
+}
+
+export function deleteSharedDoc(id: string): void {
+  db.prepare('DELETE FROM shared_documents WHERE id = ?').run(id)
+}
+
+/** Total bytes stored in shared_documents */
+export function getSharedDocsBytes(): number {
+  const row = db.prepare(
+    `SELECT COALESCE(SUM(file_size), 0) as total FROM shared_documents`
+  ).get() as { total: number }
+  return row.total
 }
