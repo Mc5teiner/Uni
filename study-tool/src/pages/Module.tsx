@@ -352,6 +352,74 @@ function ModuleDetail({
                   Noch keine Einsendearbeiten
                 </p>
               ) : (
+                <>
+                  {/* Progress summary */}
+                  {(() => {
+                    const total     = assignments.length
+                    const done      = assignments.filter(a => a.done).length
+                    const passed    = assignments.filter(a => a.passed === true).length
+                    const donePct   = Math.round((done   / total) * 100)
+                    const passedPct = Math.round((passed / total) * 100)
+                    return (
+                      <div
+                        className="rounded-xl p-4 mb-5"
+                        style={{ background: 'var(--th-bg-secondary)', border: '1px solid var(--th-border)' }}
+                      >
+                        <div className="flex items-center justify-between text-sm mb-3">
+                          <span className="font-medium" style={{ color: 'var(--th-text)' }}>
+                            Fortschritt
+                          </span>
+                          <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--th-text-3)' }}>
+                            <span>
+                              <span className="font-semibold" style={{ color: 'var(--th-text)' }}>{done}</span>
+                              /{total} erledigt
+                            </span>
+                            <span>
+                              <span className="font-semibold" style={{ color: 'var(--th-success)' }}>{passed}</span>
+                              /{total} bestanden
+                            </span>
+                          </div>
+                        </div>
+                        <div
+                          className="h-2.5 rounded-full overflow-hidden"
+                          style={{ background: 'var(--th-border)' }}
+                          role="progressbar"
+                          aria-valuenow={donePct}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-label={`${done} von ${total} Einsendearbeiten erledigt, ${passed} bestanden`}
+                        >
+                          {passedPct > 0 && (
+                            <div
+                              className="h-full float-left rounded-l-full"
+                              style={{
+                                width: `${passedPct}%`,
+                                background: 'var(--th-success)',
+                                transition: 'width 600ms cubic-bezier(0.4,0,0.2,1)',
+                              }}
+                            />
+                          )}
+                          {donePct > passedPct && (
+                            <div
+                              className="h-full float-left"
+                              style={{
+                                width: `${donePct - passedPct}%`,
+                                background: 'var(--th-accent)',
+                                transition: 'width 600ms cubic-bezier(0.4,0,0.2,1)',
+                                borderRadius: passedPct === 0 ? '9999px 0 0 9999px' : '0',
+                              }}
+                            />
+                          )}
+                        </div>
+                        {total > 0 && (
+                          <div className="flex justify-between mt-2 text-xs" style={{ color: 'var(--th-text-3)' }}>
+                            <span style={{ color: 'var(--th-accent)' }}>{donePct}% erledigt</span>
+                            <span>{passedPct}% bestanden</span>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
                 <ul className="space-y-3" role="list">
                   {assignments.map(ea => (
                     <li
@@ -405,6 +473,7 @@ function ModuleDetail({
                     </li>
                   ))}
                 </ul>
+                </>
               )}
 
               <button
@@ -648,6 +717,62 @@ function ModuleCard({
             </div>
           ))}
         </div>
+
+        {/* Assignment progress */}
+        {(module.assignments?.length ?? 0) > 0 && (() => {
+          const total    = module.assignments!.length
+          const done     = module.assignments!.filter(a => a.done).length
+          const passed   = module.assignments!.filter(a => a.passed === true).length
+          const donePct   = Math.round((done   / total) * 100)
+          const passedPct = Math.round((passed / total) * 100)
+          return (
+            <div className="mb-3">
+              <div className="flex justify-between items-center text-xs mb-1.5">
+                <span className="flex items-center gap-1" style={{ color: 'var(--th-text-3)' }}>
+                  <ClipboardList size={11} aria-hidden="true" />
+                  Einsendearbeiten
+                </span>
+                <span style={{ color: 'var(--th-text-3)' }}>
+                  {done}/{total} erledigt
+                  {passed > 0 && <span style={{ color: 'var(--th-success)' }}> · {passed} bestanden</span>}
+                </span>
+              </div>
+              <div
+                className="h-1.5 rounded-full overflow-hidden"
+                style={{ background: 'var(--th-border)' }}
+                role="progressbar"
+                aria-valuenow={donePct}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`Einsendearbeiten: ${done} von ${total} erledigt, ${passed} bestanden`}
+              >
+                {/* passed portion (green) */}
+                {passedPct > 0 && (
+                  <div
+                    className="h-full float-left rounded-l-full"
+                    style={{
+                      width: `${passedPct}%`,
+                      background: 'var(--th-success)',
+                      transition: 'width 600ms cubic-bezier(0.4,0,0.2,1)',
+                    }}
+                  />
+                )}
+                {/* done-but-not-yet-passed portion (accent) */}
+                {donePct > passedPct && (
+                  <div
+                    className="h-full float-left"
+                    style={{
+                      width: `${donePct - passedPct}%`,
+                      background: 'var(--th-accent)',
+                      transition: 'width 600ms cubic-bezier(0.4,0,0.2,1)',
+                      borderRadius: passedPct === 0 ? '9999px 0 0 9999px' : '0',
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Exam badges */}
         {nextExam?.date && (

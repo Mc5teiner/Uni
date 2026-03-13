@@ -34,7 +34,6 @@ export default function GlobalSearch({ onClose }: { onClose: () => void }) {
 
     data.modules.forEach(m => {
       if (m.name.toLowerCase().includes(q) || m.moduleNumber.includes(q) || m.description?.toLowerCase().includes(q)) {
-        const mod = data.modules.find(x => x.id === m.id)
         out.push({ id: m.id, type: 'module', title: m.name, subtitle: `${m.moduleNumber} · ${m.semester}`, path: '/module' })
       }
     })

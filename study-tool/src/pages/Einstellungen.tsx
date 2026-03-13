@@ -390,7 +390,7 @@ export default function EinstellungenPage() {
   const importRef                                 = useRef<HTMLInputElement>(null)
   const [fullExportProgress, setFullExportProgress] = useState<{ done: number; total: number } | null>(null)
   const [importPreview, setImportPreview]         = useState<BackupSummary | null>(null)
-  const [importFile, setImportFile]               = useState<File | null>(null)
+  const [_importFile, setImportFile]               = useState<File | null>(null)
   const [importLoading, setImportLoading]         = useState(false)
 
   const handleExport = () => exportData(data)
