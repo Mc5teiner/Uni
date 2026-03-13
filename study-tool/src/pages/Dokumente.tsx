@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useApp } from '../context/AppContext'
-import type { StudyDocument, Bookmark, SharedDocument } from '../types'
+import type { StudyDocument, Bookmark, SharedDocument, NoteColor } from '../types'
 import { generateId } from '../utils/storage'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
@@ -16,6 +16,17 @@ import { sharedDocuments as sharedDocsApi } from '../api/client'
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString()
 
 const SEMESTER_OPTIONS = getNextSemesters(10)
+
+// ─── Note color palette ───────────────────────────────────────────────────────
+const NOTE_COLORS: { id: NoteColor; bg: string; border: string; dot: string }[] = [
+  { id: 'yellow', bg: '#FEF9C3', border: '#FDE047', dot: '#CA8A04' },
+  { id: 'green',  bg: '#DCFCE7', border: '#86EFAC', dot: '#16A34A' },
+  { id: 'blue',   bg: '#DBEAFE', border: '#93C5FD', dot: '#2563EB' },
+  { id: 'pink',   bg: '#FCE7F3', border: '#F9A8D4', dot: '#DB2777' },
+]
+function getNoteStyle(color?: NoteColor) {
+  return NOTE_COLORS.find(c => c.id === color) ?? NOTE_COLORS[0]
+}
 
 // ─── PDF Thumbnail ────────────────────────────────────────────────────────────
 
@@ -146,6 +157,182 @@ function DocEditForm({ doc, modules, onSave, onCancel }: DocEditFormProps) {
 
 // ─── PDF Viewer ───────────────────────────────────────────────────────────────
 
+// ─── Note list + input panel (shared by "Seite" and "Alle" tabs) ──────────────
+
+function NoteColorPicker({
+  showNoteInput, noteText, noteColor, editingNoteId, editingNoteText, editingNoteColor,
+  notes, showPageBadge,
+  onChangeNoteText, onChangeNoteColor, onAddNote, onCancelNote, onShowNoteInput,
+  onEditNote, onSaveEdit, onCancelEdit, onChangeEditText, onChangeEditColor,
+  onRemoveNote, onGoToPage,
+}: {
+  showNoteInput: boolean
+  noteText: string
+  noteColor: NoteColor
+  editingNoteId: string | null
+  editingNoteText: string
+  editingNoteColor: NoteColor
+  notes: { id: string; page: number; text: string; color?: NoteColor; createdAt: string }[]
+  showPageBadge: boolean
+  onChangeNoteText: (t: string) => void
+  onChangeNoteColor: (c: NoteColor) => void
+  onAddNote: () => void
+  onCancelNote: () => void
+  onShowNoteInput: () => void
+  onEditNote: (id: string, text: string, color?: NoteColor) => void
+  onSaveEdit: () => void
+  onCancelEdit: () => void
+  onChangeEditText: (t: string) => void
+  onChangeEditColor: (c: NoteColor) => void
+  onRemoveNote: (id: string) => void
+  onGoToPage: (p: number) => void
+}) {
+  return (
+    <div className="p-3 flex-1 overflow-y-auto flex flex-col gap-2">
+      {/* Note list */}
+      {notes.length === 0 ? (
+        <div className="text-xs th-text-3 text-center py-4">Keine Notizen</div>
+      ) : notes.map(note => {
+        const style = getNoteStyle(note.color)
+        return (
+          <div
+            key={note.id}
+            className="rounded-lg text-xs th-text-2 group"
+            style={{ background: style.bg, border: `1px solid ${style.border}` }}
+          >
+            {editingNoteId === note.id ? (
+              <div className="p-2">
+                {/* Color row */}
+                <div className="flex gap-1 mb-1.5">
+                  {NOTE_COLORS.map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => onChangeEditColor(c.id)}
+                      className="w-5 h-5 rounded-full border-2 transition-transform"
+                      style={{
+                        background: c.bg,
+                        borderColor: editingNoteColor === c.id ? c.dot : c.border,
+                        transform: editingNoteColor === c.id ? 'scale(1.25)' : 'scale(1)',
+                      }}
+                      aria-label={c.id}
+                    />
+                  ))}
+                </div>
+                <textarea
+                  autoFocus
+                  className="w-full text-xs border rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white resize-none"
+                  style={{ borderColor: style.border }}
+                  rows={3}
+                  value={editingNoteText}
+                  onChange={e => onChangeEditText(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) onSaveEdit() }}
+                />
+                <div className="flex gap-1 mt-1">
+                  <button
+                    onClick={onSaveEdit}
+                    className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-blue-600 text-white rounded font-medium"
+                    style={{ minHeight: '2rem' }}
+                  >
+                    <Check size={12} /> Speichern
+                  </button>
+                  <button
+                    onClick={onCancelEdit}
+                    className="flex items-center justify-center px-2 py-1.5 rounded th-text-3"
+                    style={{ minHeight: '2rem', background: style.bg }}
+                    aria-label="Abbrechen"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="p-2">
+                {showPageBadge && (
+                  <button
+                    onClick={() => onGoToPage(note.page)}
+                    className="text-[10px] font-mono font-semibold mb-1 px-1.5 py-0.5 rounded cursor-pointer hover:opacity-80"
+                    style={{ background: style.border, color: style.dot }}
+                  >
+                    S.{note.page}
+                  </button>
+                )}
+                <div className="whitespace-pre-wrap">{note.text}</div>
+                <div className="flex items-center justify-between mt-1.5">
+                  <span className="th-text-3" style={{ fontSize: '10px' }}>
+                    {format(new Date(note.createdAt), 'dd.MM. HH:mm')}
+                  </span>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => onEditNote(note.id, note.text, note.color)}
+                      className="p-1 text-blue-500 hover:text-blue-700 rounded transition-colors"
+                      aria-label="Notiz bearbeiten"
+                      style={{ minWidth: '1.5rem', minHeight: '1.5rem' }}
+                    >
+                      <Pencil size={11} />
+                    </button>
+                    <button
+                      onClick={() => onRemoveNote(note.id)}
+                      className="p-1 text-red-400 hover:text-red-600 rounded transition-colors"
+                      aria-label="Notiz löschen"
+                      style={{ minWidth: '1.5rem', minHeight: '1.5rem' }}
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })}
+
+      {/* Add note */}
+      {showNoteInput ? (
+        <div className="mt-1">
+          {/* Color picker */}
+          <div className="flex gap-1.5 mb-1.5">
+            {NOTE_COLORS.map(c => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => onChangeNoteColor(c.id)}
+                className="w-5 h-5 rounded-full border-2 transition-transform"
+                style={{
+                  background:   c.bg,
+                  borderColor:  noteColor === c.id ? c.dot : c.border,
+                  transform:    noteColor === c.id ? 'scale(1.25)' : 'scale(1)',
+                }}
+                aria-label={c.id}
+              />
+            ))}
+          </div>
+          <textarea
+            autoFocus
+            className="w-full text-xs border border-[var(--th-border)] rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            rows={3}
+            placeholder="Notiz eingeben… (Strg+Enter zum Speichern)"
+            value={noteText}
+            onChange={e => onChangeNoteText(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) onAddNote() }}
+          />
+          <div className="flex gap-1 mt-1">
+            <button onClick={onAddNote} className="flex-1 py-1.5 bg-blue-600 text-white text-xs rounded font-medium">Speichern</button>
+            <button onClick={onCancelNote} className="px-3 py-1.5 text-xs rounded th-text-3 hover:bg-slate-100">Abbrechen</button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={onShowNoteInput}
+          className="mt-1 flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+        >
+          <Plus size={12} /> Notiz hinzufügen
+        </button>
+      )}
+    </div>
+  )
+}
+
 function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyDocument) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
@@ -155,13 +342,20 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
   const [scale, setScale] = useState(1.2)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
-  const [showNoteInput, setShowNoteInput] = useState(false)
-  const [noteText, setNoteText] = useState('')
+  const [showNoteInput, setShowNoteInput]     = useState(false)
+  const [noteText, setNoteText]               = useState('')
+  const [noteColor, setNoteColor]             = useState<NoteColor>('yellow')
   const [showBookmarkInput, setShowBookmarkInput] = useState(false)
-  const [bookmarkLabel, setBookmarkLabel] = useState('')
-  const [showPanel, setShowPanel] = useState(() => window.innerWidth >= 768)
-  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+  const [bookmarkLabel, setBookmarkLabel]     = useState('')
+  const [showPanel, setShowPanel]             = useState(() => window.innerWidth >= 768)
+  const [panelTab, setPanelTab]               = useState<'bookmarks' | 'page' | 'all'>('bookmarks')
+  const [editingNoteId, setEditingNoteId]     = useState<string | null>(null)
   const [editingNoteText, setEditingNoteText] = useState('')
+  const [editingNoteColor, setEditingNoteColor] = useState<NoteColor>('yellow')
+  // Resume banner: shown when doc was read before and we start at page > 1
+  const [showResume, setShowResume]           = useState(
+    () => (doc.currentPage || 1) > 1 && !!doc.lastReadAt
+  )
   const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null)
 
   // Keep refs for use in event handlers without stale closures
@@ -304,7 +498,7 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
 
   const addNote = () => {
     if (!noteText.trim()) return
-    const note = { id: generateId(), page, text: noteText, createdAt: new Date().toISOString() }
+    const note = { id: generateId(), page, text: noteText, color: noteColor, createdAt: new Date().toISOString() }
     onUpdate({ ...doc, notes: [...doc.notes, note] })
     setNoteText('')
     setShowNoteInput(false)
@@ -314,14 +508,17 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
     onUpdate({ ...doc, notes: doc.notes.filter(n => n.id !== id) })
   }
 
-  const startEditNote = (id: string, text: string) => {
+  const startEditNote = (id: string, text: string, color?: NoteColor) => {
     setEditingNoteId(id)
     setEditingNoteText(text)
+    setEditingNoteColor(color ?? 'yellow')
   }
 
   const saveEditNote = () => {
     if (!editingNoteId || !editingNoteText.trim()) return
-    onUpdate({ ...doc, notes: doc.notes.map(n => n.id === editingNoteId ? { ...n, text: editingNoteText.trim() } : n) })
+    onUpdate({ ...doc, notes: doc.notes.map(n =>
+      n.id === editingNoteId ? { ...n, text: editingNoteText.trim(), color: editingNoteColor } : n
+    )})
     setEditingNoteId(null)
     setEditingNoteText('')
   }
@@ -372,135 +569,106 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
           </button>
         </div>
 
-        {/* Bookmarks */}
-        <div className="p-3 border-b bg-[var(--th-bg)] flex-shrink-0">
-          <div className="text-xs font-semibold th-text-2 uppercase tracking-wide mb-2">Lesezeichen</div>
-          <div className="space-y-1 max-h-48 overflow-y-auto">
-            {doc.bookmarks.length === 0 ? (
-              <div className="text-xs th-text-3 text-center py-2">Noch keine Lesezeichen</div>
-            ) : doc.bookmarks.map(bm => (
-              <div key={bm.id} className="flex items-center gap-1 group">
-                <button
-                  onClick={() => { goToPage(bm.page); if (window.innerWidth < 768) setShowPanel(false) }}
-                  className="flex-1 text-left text-xs py-1.5 px-2 rounded hover:bg-blue-50 th-text-2"
-                >
-                  <span className="font-mono th-text-3 mr-1">S.{bm.page}</span>
-                  {bm.label}
-                </button>
-                <button
-                  onClick={() => removeBookmark(bm.id)}
-                  className="opacity-0 group-hover:opacity-100 p-1 text-red-400 hover:text-red-600 transition-opacity"
-                  aria-label="Lesezeichen entfernen"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            ))}
-          </div>
-          <button
-            onClick={() => setShowBookmarkInput(!showBookmarkInput)}
-            className="mt-2 flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
-          >
-            <Plus size={12} /> Lesezeichen hinzufügen
-          </button>
-          {showBookmarkInput && (
-            <div className="mt-2 flex gap-1">
-              <input
-                autoFocus
-                className="flex-1 text-xs border border-[var(--th-border)] rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder="Bezeichnung..."
-                value={bookmarkLabel}
-                onChange={e => setBookmarkLabel(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && addBookmark()}
-              />
-              <button onClick={addBookmark} className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded font-medium">OK</button>
-            </div>
-          )}
+        {/* ── Panel tab bar ────────────────────────────────────── */}
+        <div
+          className="flex text-xs font-semibold border-b flex-shrink-0"
+          style={{ background: 'var(--th-bg)', borderColor: 'var(--th-border)' }}
+          role="tablist"
+        >
+          {([
+            { id: 'bookmarks', label: `LZ (${doc.bookmarks.length})` },
+            { id: 'page',      label: `Seite ${page} (${pageNotes.length})` },
+            { id: 'all',       label: `Alle (${doc.notes.length})` },
+          ] as const).map(t => (
+            <button
+              key={t.id}
+              role="tab"
+              aria-selected={panelTab === t.id}
+              onClick={() => setPanelTab(t.id)}
+              className="flex-1 py-2 px-1 transition-colors"
+              style={{
+                color:       panelTab === t.id ? 'var(--th-accent)' : 'var(--th-text-3)',
+                borderBottom: panelTab === t.id ? '2px solid var(--th-accent)' : '2px solid transparent',
+                marginBottom: '-1px',
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
 
-        {/* Notes */}
-        <div className="p-3 flex-1 overflow-y-auto">
-          <div className="text-xs font-semibold th-text-2 uppercase tracking-wide mb-2">Notizen – Seite {page}</div>
-          <div className="space-y-2">
-            {pageNotes.length === 0 ? (
-              <div className="text-xs th-text-3 text-center py-2">Keine Notizen für diese Seite</div>
-            ) : pageNotes.map(note => (
-              <div key={note.id} className="bg-yellow-50 border border-yellow-200 rounded text-xs th-text-2 group">
-                {editingNoteId === note.id ? (
-                  <div className="p-2">
-                    <textarea
-                      autoFocus
-                      className="w-full text-xs border border-yellow-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white resize-none"
-                      rows={3}
-                      value={editingNoteText}
-                      onChange={e => setEditingNoteText(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveEditNote() }}
-                    />
-                    <div className="flex gap-1 mt-1">
-                      <button
-                        onClick={saveEditNote}
-                        className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-blue-600 text-white rounded font-medium"
-                        style={{ minHeight: '2rem' }}
-                      >
-                        <Check size={12} /> Speichern
-                      </button>
-                      <button
-                        onClick={() => setEditingNoteId(null)}
-                        className="flex items-center justify-center px-2 py-1.5 rounded hover:bg-yellow-100 th-text-3"
-                        style={{ minHeight: '2rem' }}
-                        aria-label="Abbrechen"
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-2">
-                    <div className="whitespace-pre-wrap">{note.text}</div>
-                    <div className="flex items-center justify-between mt-1.5">
-                      <span className="th-text-3">{format(new Date(note.createdAt), 'dd.MM.yyyy HH:mm')}</span>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => startEditNote(note.id, note.text)}
-                          className="p-1 text-blue-500 hover:text-blue-700 rounded hover:bg-blue-50 transition-colors"
-                          aria-label="Notiz bearbeiten"
-                          style={{ minWidth: '1.75rem', minHeight: '1.75rem' }}
-                        >
-                          <Pencil size={12} />
-                        </button>
-                        <button
-                          onClick={() => removeNote(note.id)}
-                          className="p-1 text-red-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors"
-                          aria-label="Notiz löschen"
-                          style={{ minWidth: '1.75rem', minHeight: '1.75rem' }}
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-          <button
-            onClick={() => setShowNoteInput(!showNoteInput)}
-            className="mt-2 flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
-          >
-            <Plus size={12} /> Notiz hinzufügen
-          </button>
-          {showNoteInput && (
-            <div className="mt-2">
-              <textarea
-                autoFocus
-                className="w-full text-xs border border-[var(--th-border)] rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                rows={3} placeholder="Notiz..."
-                value={noteText} onChange={e => setNoteText(e.target.value)}
-              />
-              <button onClick={addNote} className="mt-1 w-full py-1.5 bg-blue-600 text-white text-xs rounded font-medium">Speichern</button>
+        {/* ── Bookmarks tab ─────────────────────────────────── */}
+        {panelTab === 'bookmarks' && (
+          <div className="p-3 flex-1 overflow-y-auto">
+            <div className="space-y-1">
+              {doc.bookmarks.length === 0 ? (
+                <div className="text-xs th-text-3 text-center py-4">Noch keine Lesezeichen</div>
+              ) : doc.bookmarks.map(bm => (
+                <div key={bm.id} className="flex items-center gap-1 group">
+                  <button
+                    onClick={() => { goToPage(bm.page); if (window.innerWidth < 768) setShowPanel(false) }}
+                    className="flex-1 text-left text-xs py-1.5 px-2 rounded hover:bg-yellow-50 th-text-2"
+                  >
+                    <span className="font-mono th-text-3 mr-1">S.{bm.page}</span>
+                    {bm.label}
+                  </button>
+                  <button
+                    onClick={() => removeBookmark(bm.id)}
+                    className="opacity-0 group-hover:opacity-100 p-1 text-red-400 hover:text-red-600 transition-opacity"
+                    aria-label="Lesezeichen entfernen"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
             </div>
-          )}
-        </div>
+            <button
+              onClick={() => setShowBookmarkInput(!showBookmarkInput)}
+              className="mt-3 flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+            >
+              <Plus size={12} /> Lesezeichen hinzufügen
+            </button>
+            {showBookmarkInput && (
+              <div className="mt-2 flex gap-1">
+                <input
+                  autoFocus
+                  className="flex-1 text-xs border border-[var(--th-border)] rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="Bezeichnung..."
+                  value={bookmarkLabel}
+                  onChange={e => setBookmarkLabel(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addBookmark()}
+                />
+                <button onClick={addBookmark} className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded font-medium">OK</button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Note color picker helper ───────────────────────── */}
+        {(panelTab === 'page' || panelTab === 'all') && (
+          <NoteColorPicker
+            showNoteInput={showNoteInput}
+            noteText={noteText}
+            noteColor={noteColor}
+            editingNoteId={editingNoteId}
+            editingNoteText={editingNoteText}
+            editingNoteColor={editingNoteColor}
+            notes={panelTab === 'page' ? pageNotes : doc.notes}
+            showPageBadge={panelTab === 'all'}
+            onChangeNoteText={setNoteText}
+            onChangeNoteColor={setNoteColor}
+            onAddNote={addNote}
+            onCancelNote={() => setShowNoteInput(false)}
+            onShowNoteInput={() => { setShowNoteInput(true); setPanelTab('page') }}
+            onEditNote={(id, text, color) => startEditNote(id, text, color)}
+            onSaveEdit={saveEditNote}
+            onCancelEdit={() => setEditingNoteId(null)}
+            onChangeEditText={setEditingNoteText}
+            onChangeEditColor={setEditingNoteColor}
+            onRemoveNote={removeNote}
+            onGoToPage={(p) => { goToPage(p); if (window.innerWidth < 768) setShowPanel(false) }}
+          />
+        )}
       </div>
 
       {/* ── PDF canvas area ──────────────────────────────────────── */}
@@ -582,7 +750,7 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
 
           {/* Add note */}
           <button
-            onClick={() => setShowNoteInput(true)}
+            onClick={() => { setShowNoteInput(true); setPanelTab('page'); setShowPanel(true) }}
             className="p-2 rounded-lg hover:bg-slate-600 transition-colors"
             title="Notiz hinzufügen"
           >
@@ -597,9 +765,36 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
           </div>
         </div>
 
-        {/* Progress bar */}
-        <div className="h-1 bg-slate-600 flex-shrink-0">
+        {/* Progress bar with bookmark + note page markers */}
+        <div className="h-2 bg-slate-600 flex-shrink-0 relative overflow-hidden">
+          {/* Read progress */}
           <div className="h-full bg-blue-400 transition-all" style={{ width: `${(page / totalPages) * 100}%` }} />
+          {/* Bookmark markers */}
+          {doc.bookmarks.map(bm => (
+            <button
+              key={bm.id}
+              title={`Lesezeichen: ${bm.label} (S.${bm.page})`}
+              onClick={() => goToPage(bm.page)}
+              className="absolute top-0 bottom-0 w-1 cursor-pointer hover:opacity-100 opacity-80"
+              style={{
+                left: `${((bm.page - 1) / totalPages) * 100}%`,
+                background: '#FCD34D',
+              }}
+            />
+          ))}
+          {/* Note page markers */}
+          {[...new Set(doc.notes.map(n => n.page))].map(p => (
+            <button
+              key={`note-${p}`}
+              title={`${doc.notes.filter(n => n.page === p).length} Notiz(en) auf S.${p}`}
+              onClick={() => { goToPage(p); setPanelTab('page'); setShowPanel(true) }}
+              className="absolute top-0 bottom-0 w-0.5 cursor-pointer hover:opacity-100 opacity-70"
+              style={{
+                left: `${((p - 1) / totalPages) * 100}%`,
+                background: '#818CF8',
+              }}
+            />
+          ))}
         </div>
 
         {/* Canvas scroll area */}
@@ -608,6 +803,30 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
           className="flex-1 overflow-auto p-4 md:p-6 flex justify-center"
           onWheel={handleWheel}
         >
+          {/* Resume banner — shown only when doc was read before */}
+          {showResume && !loading && !loadError && (
+            <div
+              className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-3 px-4 py-2 rounded-xl shadow-lg text-sm font-medium"
+              style={{
+                background: 'rgba(30,41,59,0.92)',
+                color: 'white',
+                backdropFilter: 'blur(6px)',
+                border: '1px solid rgba(255,255,255,0.1)',
+              }}
+            >
+              <span style={{ color: '#94A3B8', fontSize: '12px' }}>
+                Zuletzt auf Seite {doc.currentPage}
+              </span>
+              <button
+                onClick={() => setShowResume(false)}
+                className="rounded-lg px-2 py-0.5 text-xs transition-colors"
+                style={{ background: 'rgba(255,255,255,0.15)' }}
+                aria-label="Banner schließen"
+              >
+                ✕
+              </button>
+            </div>
+          )}
           {loading ? (
             <div className="flex items-center justify-center h-full text-white/60 text-sm">PDF wird geladen…</div>
           ) : loadError ? (
@@ -697,20 +916,25 @@ export default function DokumentePage() {
 
       const result = await sharedDocsApi.upload(file.name, base64)
 
-      createDocument({
-        moduleId:         filterModuleId === 'alle' ? (data.modules[0]?.id ?? '') : filterModuleId,
-        name:             file.name.replace(/\.pdf$/i, ''),
-        fileName:         file.name,
-        sharedDocumentId: result.id,
-        totalPages:       result.totalPages,
-        semester:         currentSemester,
-        lastReadAt:       undefined,
-      })
-
-      setUploadMsg(result.existing
-        ? '✓ Datei bereits vorhanden – bestehende Version verknüpft (kein doppelter Speicher)'
-        : '✓ Studienbrief hochgeladen und im gemeinsamen Speicher abgelegt'
-      )
+      // Don't create a second entry if this user already has this shared doc
+      const alreadyInList = data.documents.some(d => d.sharedDocumentId === result.id)
+      if (alreadyInList) {
+        setUploadMsg('ℹ️ Dieser Studienbrief ist bereits in deiner Liste.')
+      } else {
+        createDocument({
+          moduleId:         filterModuleId === 'alle' ? (data.modules[0]?.id ?? '') : filterModuleId,
+          name:             file.name.replace(/\.pdf$/i, ''),
+          fileName:         file.name,
+          sharedDocumentId: result.id,
+          totalPages:       result.totalPages,
+          semester:         currentSemester,
+          lastReadAt:       undefined,
+        })
+        setUploadMsg(result.existing
+          ? '✓ Datei bereits vorhanden – bestehende Version verknüpft (kein doppelter Speicher)'
+          : '✓ Studienbrief hochgeladen und im gemeinsamen Speicher abgelegt'
+        )
+      }
       setTimeout(() => setUploadMsg(null), 5000)
     } catch (err) {
       setUploadMsg(`Fehler beim Hochladen: ${(err as Error).message}`)
@@ -959,7 +1183,7 @@ export default function DokumentePage() {
                       <label className="block text-xs font-medium th-text-2">Modul auswählen</label>
                       <select
                         className="th-input text-xs"
-                        value={addModuleId}
+                        value={addModuleId || data.modules[0]?.id || ''}
                         onChange={e => setAddModuleId(e.target.value)}
                       >
                         {data.modules.map(m => (
@@ -984,7 +1208,14 @@ export default function DokumentePage() {
                     </div>
                   ) : (
                     <button
-                      onClick={() => { setAddingId(sd.id); if (!addModuleId && data.modules[0]) setAddModuleId(data.modules[0].id) }}
+                      onClick={() => {
+                        setAddingId(sd.id)
+                        // Pre-select the currently active module filter, otherwise first module
+                        const defaultModule = filterModuleId !== 'alle'
+                          ? filterModuleId
+                          : (data.modules[0]?.id || '')
+                        setAddModuleId(defaultModule)
+                      }}
                       className="mt-auto w-full py-2 text-xs font-semibold rounded-lg border-2 transition-colors th-text-2 hover:th-text"
                       style={{ borderColor: 'var(--th-accent)', color: 'var(--th-accent)' }}
                       disabled={data.modules.length === 0}

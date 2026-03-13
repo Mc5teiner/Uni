@@ -2,13 +2,13 @@ import { useRef, useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
 import { useTheme, THEMES, type ThemeId } from '../context/ThemeContext'
-import { auth, caldav, data as dataApi, formatBytes, type CaldavSettings } from '../api/client'
-import { exportData, importData } from '../utils/storage'
-import { requestNotificationPermission } from '../utils/notifications'
+import { auth, caldav, data as dataApi, sharedDocuments as sharedDocsApi, formatBytes, type CaldavSettings } from '../api/client'
+import { exportData, fullExportData, readBackupFile, type BackupSummary } from '../utils/storage'
+import { requestNotificationPermission, sendNotification, checkAndSendReminders } from '../utils/notifications'
 import {
   Download, Upload, Bell, Trash2, Info, User, Calendar,
   Eye, EyeOff, Check, X, RefreshCw, Link as LinkIcon,
-  Globe, Lock, Palette,
+  Globe, Lock, Palette, FileArchive, AlertTriangle, Loader2,
 } from 'lucide-react'
 
 // ─── Profile section ──────────────────────────────────────────────────────────
@@ -386,24 +386,97 @@ function ThemeSection() {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function EinstellungenPage() {
-  const { data } = useApp()
-  const importRef = useRef<HTMLInputElement>(null)
+  const { data }                                  = useApp()
+  const importRef                                 = useRef<HTMLInputElement>(null)
+  const [fullExportProgress, setFullExportProgress] = useState<{ done: number; total: number } | null>(null)
+  const [importPreview, setImportPreview]         = useState<BackupSummary | null>(null)
+  const [_importFile, setImportFile]               = useState<File | null>(null)
+  const [importLoading, setImportLoading]         = useState(false)
 
   const handleExport = () => exportData(data)
 
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFullExport = async () => {
+    const sharedIds = [...new Set(
+      data.documents
+        .filter(d => d.sharedDocumentId && !d.fileData)
+        .map(d => d.sharedDocumentId as string)
+    )]
+    setFullExportProgress({ done: 0, total: sharedIds.length || 1 })
+    try {
+      await fullExportData(
+        data,
+        async (id) => {
+          try { return (await sharedDocsApi.get(id)).fileData ?? null }
+          catch { return null }
+        },
+        (done, total) => setFullExportProgress({ done, total }),
+      )
+    } finally {
+      setFullExportProgress(null)
+    }
+  }
+
+  const handleImportSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    try {
-      await importData(file)
-      window.location.reload()
-    } catch (err) { alert('Import fehlgeschlagen: ' + (err as Error).message) }
     e.target.value = ''
+    try {
+      const summary = await readBackupFile(file)
+      setImportFile(file)
+      setImportPreview(summary)
+    } catch (err) {
+      alert('Ungültige Backup-Datei: ' + (err as Error).message)
+    }
+  }
+
+  const handleImportConfirm = async () => {
+    if (!importPreview) return
+    setImportLoading(true)
+    try {
+      // Push all namespaces to the API
+      const d = importPreview.data
+      await Promise.all([
+        ...d.modules.map(m        => dataApi.upsert('modules',         m)),
+        ...d.documents.map(doc    => dataApi.upsert('documents',       doc)),
+        ...d.flashcards.map(c     => dataApi.upsert('flashcards',      c)),
+        ...d.flashcardDecks.map(dk => dataApi.upsert('flashcard_decks', dk)),
+        ...d.events.map(ev        => dataApi.upsert('events',          ev)),
+        ...d.sessions.map(s       => dataApi.upsert('sessions',        s)),
+        ...d.goals.map(g          => dataApi.upsert('goals',           g)),
+      ])
+      setImportPreview(null)
+      setImportFile(null)
+      window.location.reload()
+    } catch (err) {
+      alert('Import fehlgeschlagen: ' + (err as Error).message)
+    } finally {
+      setImportLoading(false)
+    }
   }
 
   const handleNotifications = async () => {
     const granted = await requestNotificationPermission()
-    alert(granted ? 'Benachrichtigungen aktiviert!' : 'Benachrichtigungen wurden abgelehnt.')
+    if (granted) {
+      sendNotification('Benachrichtigungen aktiviert', 'Du erhältst jetzt Erinnerungen für fällige Karteikarten und Prüfungen.', 'setup')
+    } else {
+      alert('Benachrichtigungen wurden abgelehnt. Bitte erlaube sie in den Browser-Einstellungen.')
+    }
+  }
+
+  const handleTestNotification = () => {
+    const dueCards      = data.flashcards.filter(c => c.dueDate <= new Date().toISOString().slice(0, 10)).length
+    const upcomingExams = data.events
+      .filter(e => e.type === 'pruefung')
+      .map(e => {
+        const d = new Date(e.date)
+        const daysUntil = Math.ceil((d.getTime() - Date.now()) / 86400000)
+        return { title: e.title, daysUntil }
+      })
+      .filter(e => e.daysUntil >= 0 && e.daysUntil <= 7)
+    checkAndSendReminders({ dueCards, upcomingExams })
+    if (dueCards === 0 && upcomingExams.length === 0) {
+      sendNotification('Alles auf dem neuesten Stand!', 'Keine fälligen Karten oder bevorstehenden Prüfungen.', 'test')
+    }
   }
 
   const totalMinutes = data.sessions.reduce((sum, s) => sum + s.durationMinutes, 0)
@@ -449,32 +522,217 @@ export default function EinstellungenPage() {
 
       {/* Backup */}
       <div className="th-card p-5 mb-6">
-        <h2 className="font-semibold th-text mb-4">Backup & Wiederherstellung</h2>
-        <p className="text-sm th-text-2 mb-4">
-          Exportiere alle deine Daten als JSON-Datei zur lokalen Sicherung.
-        </p>
-        <div className="flex gap-3 flex-wrap">
-          <button onClick={handleExport} className="th-btn th-btn-primary px-4 py-2 text-sm">
-            <Download size={16} /> Backup exportieren
+        <h2 className="font-semibold th-text mb-4 flex items-center gap-2">
+          <FileArchive size={16} /> Backup & Wiederherstellung
+        </h2>
+
+        {/* Export options */}
+        <div
+          className="rounded-xl p-4 mb-4 space-y-3"
+          style={{ background: 'var(--th-bg-secondary)' }}
+        >
+          <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--th-text-3)' }}>
+            Exportieren
+          </p>
+
+          {/* Quick export */}
+          <div className="flex items-start gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium" style={{ color: 'var(--th-text)' }}>Schnell-Backup</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--th-text-3)' }}>
+                Alle Daten außer PDF-Inhalte — sofort verfügbar
+              </p>
+            </div>
+            <button onClick={handleExport} className="th-btn th-btn-secondary gap-1.5 text-sm shrink-0" style={{ minHeight: 'auto' }}>
+              <Download size={14} /> JSON
+            </button>
+          </div>
+
+          {/* Full export */}
+          <div className="flex items-start gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium" style={{ color: 'var(--th-text)' }}>Vollständiges Backup</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--th-text-3)' }}>
+                Inklusive aller PDF-Studienbriefe — selbst-enthaltend, größere Datei
+              </p>
+              {fullExportProgress && (
+                <div className="mt-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Loader2 size={12} className="animate-spin" style={{ color: 'var(--th-accent)' }} />
+                    <span className="text-xs" style={{ color: 'var(--th-accent)' }}>
+                      PDF {fullExportProgress.done}/{fullExportProgress.total} geladen…
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--th-border)' }}>
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${(fullExportProgress.done / fullExportProgress.total) * 100}%`,
+                        background: 'var(--th-accent)',
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={handleFullExport}
+              disabled={!!fullExportProgress}
+              className="th-btn th-btn-primary gap-1.5 text-sm shrink-0"
+              style={{ minHeight: 'auto' }}
+            >
+              {fullExportProgress
+                ? <Loader2 size={14} className="animate-spin" />
+                : <Download size={14} />}
+              Voll
+            </button>
+          </div>
+        </div>
+
+        {/* Import */}
+        <div
+          className="rounded-xl p-4"
+          style={{ background: 'var(--th-bg-secondary)' }}
+        >
+          <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--th-text-3)' }}>
+            Importieren
+          </p>
+          <p className="text-sm mb-3" style={{ color: 'var(--th-text-2)' }}>
+            Stelle ein vorhandenes Backup wieder her. Du siehst zuerst eine Vorschau.
+          </p>
+          <button onClick={() => importRef.current?.click()} className="th-btn th-btn-secondary gap-1.5 text-sm" style={{ minHeight: 'auto' }}>
+            <Upload size={14} /> Backup-Datei auswählen
           </button>
-          <button onClick={() => importRef.current?.click()} className="th-btn th-btn-secondary px-4 py-2 text-sm">
-            <Upload size={16} /> Backup importieren
-          </button>
-          <input ref={importRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
+          <input ref={importRef} type="file" accept=".json" className="hidden" onChange={handleImportSelect} />
         </div>
       </div>
+
+      {/* Import preview modal */}
+      {importPreview && (
+        <div
+          className="fixed inset-0 z-[500] flex items-center justify-center px-4"
+          style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
+            style={{ background: 'var(--th-card)', border: '1px solid var(--th-border)' }}
+          >
+            <div className="px-6 py-4" style={{ borderBottom: '1px solid var(--th-border)' }}>
+              <h2 className="text-base font-bold" style={{ color: 'var(--th-text)' }}>Backup importieren</h2>
+            </div>
+
+            <div className="px-6 py-5 space-y-4">
+              {/* Metadata */}
+              <div className="text-sm space-y-1" style={{ color: 'var(--th-text-2)' }}>
+                <div>
+                  <span style={{ color: 'var(--th-text-3)' }}>Erstellt am: </span>
+                  {importPreview.exportedAt !== 'Unbekannt'
+                    ? new Date(importPreview.exportedAt).toLocaleString('de-DE')
+                    : 'Unbekannt'}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span style={{ color: 'var(--th-text-3)' }}>Typ: </span>
+                  {importPreview.fullBackup
+                    ? <span style={{ color: '#16a34a' }} className="flex items-center gap-1">
+                        <Check size={13} /> Vollständiges Backup (mit PDFs)
+                      </span>
+                    : <span>Schnell-Backup (ohne PDFs)</span>}
+                </div>
+              </div>
+
+              {/* Data counts */}
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { label: 'Module',       value: importPreview.modules },
+                  { label: 'Dokumente',    value: importPreview.documents },
+                  { label: 'Karteikarten', value: importPreview.flashcards },
+                  { label: 'Kästen',       value: importPreview.decks },
+                  { label: 'Termine',      value: importPreview.events },
+                  { label: 'Sessions',     value: importPreview.sessions },
+                ].map(({ label, value }) => (
+                  <div
+                    key={label}
+                    className="rounded-lg px-3 py-2 text-center"
+                    style={{ background: 'var(--th-bg-secondary)' }}
+                  >
+                    <div className="text-lg font-bold" style={{ color: 'var(--th-text)' }}>{value}</div>
+                    <div className="text-xs" style={{ color: 'var(--th-text-3)' }}>{label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Warning */}
+              <div
+                className="flex items-start gap-2.5 rounded-xl p-3 text-sm"
+                style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)' }}
+              >
+                <AlertTriangle size={16} className="shrink-0 mt-0.5" style={{ color: '#D97706' }} />
+                <p style={{ color: '#92400E' }}>
+                  Die Daten werden mit den bestehenden Einträgen zusammengeführt (Merge). Gleichnamige IDs werden überschrieben.
+                </p>
+              </div>
+            </div>
+
+            <div
+              className="flex gap-3 px-6 py-4 justify-end"
+              style={{ borderTop: '1px solid var(--th-border)' }}
+            >
+              <button
+                onClick={() => { setImportPreview(null); setImportFile(null) }}
+                className="th-btn th-btn-secondary"
+                disabled={importLoading}
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={handleImportConfirm}
+                disabled={importLoading}
+                className="th-btn th-btn-primary gap-2"
+              >
+                {importLoading
+                  ? <><Loader2 size={15} className="animate-spin" /> Wird importiert…</>
+                  : <><Upload size={15} /> Importieren</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Notifications */}
       <div className="th-card p-5 mb-6">
         <h2 className="font-semibold th-text mb-4 flex items-center gap-2"><Bell size={16} /> Benachrichtigungen</h2>
-        <p className="text-sm th-text-2 mb-4">
-          {typeof Notification !== 'undefined' && Notification.permission === 'granted'
-            ? <span style={{ color: 'var(--th-success)', display: 'flex', alignItems: 'center', gap: '4px' }}><Check size={14} /> Benachrichtigungen aktiviert</span>
-            : 'Aktiviere Browser-Benachrichtigungen für Lernreminder und Terminhinweise.'}
-        </p>
-        <button onClick={handleNotifications} className="th-btn th-btn-secondary px-4 py-2 text-sm">
-          <Bell size={16} /> Benachrichtigungen aktivieren
-        </button>
+
+        {typeof Notification === 'undefined' ? (
+          <p className="text-sm th-text-3">Dein Browser unterstützt keine Benachrichtigungen.</p>
+        ) : Notification.permission === 'granted' ? (
+          <>
+            <div className="flex items-center gap-2 text-sm mb-4" style={{ color: '#16a34a' }}>
+              <Check size={15} aria-hidden="true" /> Benachrichtigungen sind aktiv
+            </div>
+            <ul className="text-sm space-y-1.5 mb-4" style={{ color: 'var(--th-text-2)' }}>
+              <li>• Fällige Karteikarten (max. einmal alle 12 Stunden)</li>
+              <li>• Prüfungen innerhalb der nächsten 7 Tage</li>
+              <li>• Werden beim Öffnen der App geprüft</li>
+            </ul>
+            <button onClick={handleTestNotification} className="th-btn th-btn-secondary gap-2 text-sm">
+              <Bell size={15} /> Testbenachrichtigung senden
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="text-sm th-text-2 mb-4">
+              Aktiviere Browser-Benachrichtigungen, um an fällige Karteikarten und bevorstehende Prüfungen erinnert zu werden.
+            </p>
+            <button onClick={handleNotifications} className="th-btn th-btn-primary gap-2 text-sm">
+              <Bell size={15} /> Benachrichtigungen aktivieren
+            </button>
+            {Notification.permission === 'denied' && (
+              <p className="text-xs mt-2" style={{ color: 'var(--th-danger)' }}>
+                Benachrichtigungen wurden blockiert. Bitte erlaube sie in den Browser-Einstellungen (Adressleiste).
+              </p>
+            )}
+          </>
+        )}
       </div>
 
       {/* FernUni links */}

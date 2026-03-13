@@ -7,6 +7,7 @@ import {
   Plus, Pencil, Trash2, BookOpen, Clock, X, Check, Search,
   ArrowLeft, ExternalLink, BrainCircuit, FileText,
   CheckCircle2, XCircle, Minus, GraduationCap, ClipboardList,
+  Upload, AlertCircle,
 } from 'lucide-react'
 import { FERNUNI_MODULES, getNextSemesters } from '../data/fernuniModules'
 import { generateId } from '../utils/storage'
@@ -351,6 +352,74 @@ function ModuleDetail({
                   Noch keine Einsendearbeiten
                 </p>
               ) : (
+                <>
+                  {/* Progress summary */}
+                  {(() => {
+                    const total     = assignments.length
+                    const done      = assignments.filter(a => a.done).length
+                    const passed    = assignments.filter(a => a.passed === true).length
+                    const donePct   = Math.round((done   / total) * 100)
+                    const passedPct = Math.round((passed / total) * 100)
+                    return (
+                      <div
+                        className="rounded-xl p-4 mb-5"
+                        style={{ background: 'var(--th-bg-secondary)', border: '1px solid var(--th-border)' }}
+                      >
+                        <div className="flex items-center justify-between text-sm mb-3">
+                          <span className="font-medium" style={{ color: 'var(--th-text)' }}>
+                            Fortschritt
+                          </span>
+                          <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--th-text-3)' }}>
+                            <span>
+                              <span className="font-semibold" style={{ color: 'var(--th-text)' }}>{done}</span>
+                              /{total} erledigt
+                            </span>
+                            <span>
+                              <span className="font-semibold" style={{ color: 'var(--th-success)' }}>{passed}</span>
+                              /{total} bestanden
+                            </span>
+                          </div>
+                        </div>
+                        <div
+                          className="h-2.5 rounded-full overflow-hidden"
+                          style={{ background: 'var(--th-border)' }}
+                          role="progressbar"
+                          aria-valuenow={donePct}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-label={`${done} von ${total} Einsendearbeiten erledigt, ${passed} bestanden`}
+                        >
+                          {passedPct > 0 && (
+                            <div
+                              className="h-full float-left rounded-l-full"
+                              style={{
+                                width: `${passedPct}%`,
+                                background: 'var(--th-success)',
+                                transition: 'width 600ms cubic-bezier(0.4,0,0.2,1)',
+                              }}
+                            />
+                          )}
+                          {donePct > passedPct && (
+                            <div
+                              className="h-full float-left"
+                              style={{
+                                width: `${donePct - passedPct}%`,
+                                background: 'var(--th-accent)',
+                                transition: 'width 600ms cubic-bezier(0.4,0,0.2,1)',
+                                borderRadius: passedPct === 0 ? '9999px 0 0 9999px' : '0',
+                              }}
+                            />
+                          )}
+                        </div>
+                        {total > 0 && (
+                          <div className="flex justify-between mt-2 text-xs" style={{ color: 'var(--th-text-3)' }}>
+                            <span style={{ color: 'var(--th-accent)' }}>{donePct}% erledigt</span>
+                            <span>{passedPct}% bestanden</span>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
                 <ul className="space-y-3" role="list">
                   {assignments.map(ea => (
                     <li
@@ -404,6 +473,7 @@ function ModuleDetail({
                     </li>
                   ))}
                 </ul>
+                </>
               )}
 
               <button
@@ -647,6 +717,62 @@ function ModuleCard({
             </div>
           ))}
         </div>
+
+        {/* Assignment progress */}
+        {(module.assignments?.length ?? 0) > 0 && (() => {
+          const total    = module.assignments!.length
+          const done     = module.assignments!.filter(a => a.done).length
+          const passed   = module.assignments!.filter(a => a.passed === true).length
+          const donePct   = Math.round((done   / total) * 100)
+          const passedPct = Math.round((passed / total) * 100)
+          return (
+            <div className="mb-3">
+              <div className="flex justify-between items-center text-xs mb-1.5">
+                <span className="flex items-center gap-1" style={{ color: 'var(--th-text-3)' }}>
+                  <ClipboardList size={11} aria-hidden="true" />
+                  Einsendearbeiten
+                </span>
+                <span style={{ color: 'var(--th-text-3)' }}>
+                  {done}/{total} erledigt
+                  {passed > 0 && <span style={{ color: 'var(--th-success)' }}> · {passed} bestanden</span>}
+                </span>
+              </div>
+              <div
+                className="h-1.5 rounded-full overflow-hidden"
+                style={{ background: 'var(--th-border)' }}
+                role="progressbar"
+                aria-valuenow={donePct}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`Einsendearbeiten: ${done} von ${total} erledigt, ${passed} bestanden`}
+              >
+                {/* passed portion (green) */}
+                {passedPct > 0 && (
+                  <div
+                    className="h-full float-left rounded-l-full"
+                    style={{
+                      width: `${passedPct}%`,
+                      background: 'var(--th-success)',
+                      transition: 'width 600ms cubic-bezier(0.4,0,0.2,1)',
+                    }}
+                  />
+                )}
+                {/* done-but-not-yet-passed portion (accent) */}
+                {donePct > passedPct && (
+                  <div
+                    className="h-full float-left"
+                    style={{
+                      width: `${donePct - passedPct}%`,
+                      background: 'var(--th-accent)',
+                      transition: 'width 600ms cubic-bezier(0.4,0,0.2,1)',
+                      borderRadius: passedPct === 0 ? '9999px 0 0 9999px' : '0',
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Exam badges */}
         {nextExam?.date && (
@@ -1005,14 +1131,306 @@ function ModuleForm({
   )
 }
 
+/* ─── Bulk Import Modal ──────────────────────────────────────────────────── */
+
+interface BulkImportCandidate {
+  number: string
+  name: string
+  ects: number
+  faculty: string
+  selected: boolean
+  alreadyExists: boolean
+}
+
+function BulkImportModal({
+  existingNumbers,
+  onImport,
+  onCancel,
+}: {
+  existingNumbers: Set<string>
+  onImport: (modules: { name: string; moduleNumber: string; credits: number; semester: string; status: ModuleStatus; color: string }[]) => void
+  onCancel: () => void
+}) {
+  const [text, setText]           = useState('')
+  const [candidates, setCandidates] = useState<BulkImportCandidate[]>([])
+  const [parsed, setParsed]       = useState(false)
+  const [semester, setSemester]   = useState(SEMESTER_OPTIONS[0])
+  const [status, setStatus]       = useState<ModuleStatus>('aktiv')
+
+  function parseText() {
+    // Extract all 5-digit numbers that look like FernUni module numbers (3xxxx or 4xxxx)
+    const matches = [...new Set(text.match(/\b[34]\d{4}\b/g) ?? [])]
+    const found: BulkImportCandidate[] = []
+
+    for (const num of matches) {
+      const catalog = FERNUNI_MODULES.find(m => m.number === num)
+      if (catalog) {
+        found.push({
+          number:        catalog.number,
+          name:          catalog.name,
+          ects:          catalog.ects,
+          faculty:       catalog.faculty,
+          selected:      !existingNumbers.has(catalog.number),
+          alreadyExists: existingNumbers.has(catalog.number),
+        })
+      } else {
+        // Unknown number — still show it so user can skip or confirm
+        found.push({
+          number:        num,
+          name:          `Unbekanntes Modul ${num}`,
+          ects:          10,
+          faculty:       'Unbekannte Fakultät',
+          selected:      false,
+          alreadyExists: false,
+        })
+      }
+    }
+
+    setCandidates(found)
+    setParsed(true)
+  }
+
+  function toggleAll(val: boolean) {
+    setCandidates(cs => cs.map(c => c.alreadyExists ? c : { ...c, selected: val }))
+  }
+
+  function toggleOne(num: string) {
+    setCandidates(cs => cs.map(c => c.number === num ? { ...c, selected: !c.selected } : c))
+  }
+
+  const selectedCount = candidates.filter(c => c.selected).length
+  const colorList     = MODULE_COLORS
+
+  function handleImport() {
+    const mods = candidates
+      .filter(c => c.selected)
+      .map((c, i) => ({
+        name:         c.name,
+        moduleNumber: c.number,
+        credits:      c.ects,
+        semester,
+        status,
+        color:        colorList[i % colorList.length],
+      }))
+    onImport(mods)
+  }
+
+  return (
+    <div
+      className="th-modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="bulk-modal-title"
+      onClick={e => { if (e.target === e.currentTarget) onCancel() }}
+    >
+      <div className="th-modal w-full max-w-xl">
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-6 py-4"
+          style={{ borderBottom: '1px solid var(--th-border)' }}
+        >
+          <h2 id="bulk-modal-title" className="text-base font-bold" style={{ color: 'var(--th-text)', letterSpacing: '-0.02em' }}>
+            Module aus Text importieren
+          </h2>
+          <button type="button" onClick={onCancel} className="th-icon-btn" aria-label="Schließen">
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-5 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 140px)' }}>
+
+          {!parsed ? (
+            <>
+              <p className="text-sm" style={{ color: 'var(--th-text-2)' }}>
+                Füge beliebigen Text ein — z.B. aus Moodle, einer E-Mail oder deinem Studienplan.
+                Modulnummern (5-stellig) werden automatisch erkannt und mit dem FernUni-Katalog abgeglichen.
+              </p>
+              <div>
+                <label className="th-label" htmlFor="bulk-text">Dein Text</label>
+                <textarea
+                  id="bulk-text"
+                  className="th-input font-mono"
+                  rows={10}
+                  placeholder={'Beispiel:\n31101 Wirtschaftsmathematik und Statistik\n31621 Grundlagen des Marketing\n...'}
+                  value={text}
+                  onChange={e => setText(e.target.value)}
+                  style={{ resize: 'vertical' }}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={parseText}
+                disabled={!text.trim()}
+                className="th-btn th-btn-primary gap-2 w-full"
+              >
+                <Search size={15} aria-hidden="true" />
+                Modulnummern erkennen
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Back link */}
+              <button
+                type="button"
+                onClick={() => { setParsed(false); setCandidates([]) }}
+                className="flex items-center gap-1.5 text-sm"
+                style={{ color: 'var(--th-text-3)' }}
+              >
+                <ArrowLeft size={14} aria-hidden="true" />
+                Anderen Text eingeben
+              </button>
+
+              {candidates.length === 0 ? (
+                <div
+                  className="flex flex-col items-center gap-3 py-10 text-center"
+                  style={{ color: 'var(--th-text-3)' }}
+                >
+                  <AlertCircle size={36} aria-hidden="true" style={{ opacity: 0.5 }} />
+                  <p className="text-sm">Keine FernUni-Modulnummern gefunden.</p>
+                  <p className="text-xs">Achte darauf, dass der Text 5-stellige Nummern enthält (z.B. 31101).</p>
+                </div>
+              ) : (
+                <>
+                  {/* Select all / deselect all */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold" style={{ color: 'var(--th-text)' }}>
+                      {candidates.length} Modul{candidates.length !== 1 ? 'e' : ''} gefunden
+                    </span>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => toggleAll(true)}
+                        className="text-xs px-2 py-1 rounded-lg" style={{ color: 'var(--th-accent)' }}>
+                        Alle wählen
+                      </button>
+                      <button type="button" onClick={() => toggleAll(false)}
+                        className="text-xs px-2 py-1 rounded-lg" style={{ color: 'var(--th-text-3)' }}>
+                        Alle abwählen
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Candidate list */}
+                  <ul className="space-y-2" role="list">
+                    {candidates.map(c => (
+                      <li key={c.number}>
+                        <label
+                          className="flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-colors"
+                          style={{
+                            background: c.selected
+                              ? 'rgba(0,82,165,0.08)'
+                              : 'var(--th-bg-secondary)',
+                            border: `1px solid ${c.selected ? 'rgba(0,82,165,0.2)' : 'var(--th-border)'}`,
+                            opacity: c.alreadyExists ? 0.6 : 1,
+                            cursor: c.alreadyExists ? 'default' : 'pointer',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={c.selected}
+                            onChange={() => !c.alreadyExists && toggleOne(c.number)}
+                            disabled={c.alreadyExists}
+                            className="mt-0.5 shrink-0"
+                            aria-label={c.name}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <code className="text-xs font-mono shrink-0" style={{ color: 'var(--th-text-3)' }}>
+                                {c.number}
+                              </code>
+                              <span className="text-sm font-medium truncate" style={{ color: 'var(--th-text)' }}>
+                                {c.name}
+                              </span>
+                              {c.alreadyExists && (
+                                <span className="text-xs px-1.5 py-0.5 rounded-md shrink-0"
+                                  style={{ background: 'var(--th-bg-secondary)', color: 'var(--th-text-3)' }}>
+                                  bereits vorhanden
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs mt-0.5" style={{ color: 'var(--th-text-3)' }}>
+                              {c.faculty} · {c.ects} ECTS
+                            </div>
+                          </div>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {/* Default semester + status for import */}
+                  <div className="grid grid-cols-2 gap-4 pt-2" style={{ borderTop: '1px solid var(--th-border)' }}>
+                    <div>
+                      <label className="th-label" htmlFor="bulk-semester">Semester</label>
+                      <select
+                        id="bulk-semester"
+                        className="th-input"
+                        value={semester}
+                        onChange={e => setSemester(e.target.value)}
+                      >
+                        {SEMESTER_OPTIONS.map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="th-label" htmlFor="bulk-status">Status</label>
+                      <select
+                        id="bulk-status"
+                        className="th-input"
+                        value={status}
+                        onChange={e => setStatus(e.target.value as ModuleStatus)}
+                      >
+                        {(Object.entries(STATUS_LABELS) as [ModuleStatus, string][]).map(([k, v]) => (
+                          <option key={k} value={k}>{v}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        {parsed && candidates.length > 0 && (
+          <div
+            className="flex items-center justify-between gap-3 px-6 py-4"
+            style={{ borderTop: '1px solid var(--th-border)' }}
+          >
+            <span className="text-sm" style={{ color: 'var(--th-text-2)' }}>
+              {selectedCount} Modul{selectedCount !== 1 ? 'e' : ''} ausgewählt
+            </span>
+            <div className="flex gap-2">
+              <button type="button" onClick={onCancel} className="th-btn th-btn-secondary">
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                onClick={handleImport}
+                disabled={selectedCount === 0}
+                className="th-btn th-btn-primary gap-2"
+              >
+                <Upload size={15} aria-hidden="true" />
+                {selectedCount} Modul{selectedCount !== 1 ? 'e' : ''} importieren
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 /* ─── Main Page ──────────────────────────────────────────────────────────── */
 
 export default function ModulePage() {
   const { data, createModule, updateModule, removeModule } = useApp()
-  const [showForm,      setShowForm]      = useState(false)
-  const [editTarget,    setEditTarget]    = useState<StudyModule | undefined>()
-  const [filterStatus,  setFilterStatus]  = useState<ModuleStatus | 'alle'>('alle')
+  const [showForm,       setShowForm]       = useState(false)
+  const [editTarget,     setEditTarget]     = useState<StudyModule | undefined>()
+  const [filterStatus,   setFilterStatus]   = useState<ModuleStatus | 'alle'>('alle')
   const [activeModuleId, setActiveModuleId] = useState<string | null>(null)
+  const [showBulkImport, setShowBulkImport] = useState(false)
+
+  const existingModuleNumbers = new Set(data.modules.map(m => m.moduleNumber).filter(Boolean))
 
   const filtered     = data.modules.filter(m => filterStatus === 'alle' || m.status === filterStatus)
   const activeModule = activeModuleId ? data.modules.find(m => m.id === activeModuleId) : null
@@ -1025,6 +1443,11 @@ export default function ModulePage() {
     }
     setShowForm(false)
     setEditTarget(undefined)
+  }
+
+  const handleBulkImport = (mods: { name: string; moduleNumber: string; credits: number; semester: string; status: ModuleStatus; color: string }[]) => {
+    mods.forEach(m => createModule({ ...m, exams: [], assignments: [], description: '', moodleUrl: '' }))
+    setShowBulkImport(false)
   }
 
   const handleEdit   = (m: StudyModule) => { setEditTarget(m); setShowForm(true) }
@@ -1056,14 +1479,25 @@ export default function ModulePage() {
             {data.modules.length} Module gesamt
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => { setEditTarget(undefined); setShowForm(true) }}
-          className="th-btn th-btn-primary shrink-0 gap-2"
-        >
-          <Plus size={16} aria-hidden="true" />
-          Neues Modul
-        </button>
+        <div className="flex gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowBulkImport(true)}
+            className="th-btn th-btn-secondary gap-2"
+            title="Module aus Text importieren"
+          >
+            <Upload size={16} aria-hidden="true" />
+            <span className="hidden sm:inline">Importieren</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => { setEditTarget(undefined); setShowForm(true) }}
+            className="th-btn th-btn-primary gap-2"
+          >
+            <Plus size={16} aria-hidden="true" />
+            Neues Modul
+          </button>
+        </div>
       </div>
 
       {/* Status filter */}
@@ -1126,6 +1560,14 @@ export default function ModulePage() {
           initial={editTarget}
           onSave={handleSave}
           onCancel={() => { setShowForm(false); setEditTarget(undefined) }}
+        />
+      )}
+
+      {showBulkImport && (
+        <BulkImportModal
+          existingNumbers={existingModuleNumbers}
+          onImport={handleBulkImport}
+          onCancel={() => setShowBulkImport(false)}
         />
       )}
     </div>

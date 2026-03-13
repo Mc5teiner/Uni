@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
 import { getDueCards } from '../utils/spaceRepetition'
-import { format, parseISO, isToday, isTomorrow, differenceInDays, startOfWeek, eachDayOfInterval, endOfWeek } from 'date-fns'
+import { format, parseISO, isToday, isTomorrow, differenceInDays, startOfWeek, eachDayOfInterval, endOfWeek, subDays } from 'date-fns'
 import { de } from 'date-fns/locale'
-import { BrainCircuit, FileText, BookOpen, Calendar, Clock, TrendingUp, AlertCircle, CheckCircle2, ArrowRight, Flame, Calculator, GraduationCap } from 'lucide-react'
+import { BrainCircuit, FileText, BookOpen, Calendar, Clock, TrendingUp, AlertCircle, CheckCircle2, ArrowRight, Flame, Calculator, GraduationCap, BarChart2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import {
   calcGesamtnote, calcPflichtStats, calcWahlStats,
@@ -205,6 +205,99 @@ function WeekChart({ sessions }: { sessions: { date: string; durationMinutes: nu
   )
 }
 
+// ─── 30-day activity heatmap strip ───────────────────────────────────────────
+
+function MonthChart({ sessions }: { sessions: { date: string; durationMinutes: number }[] }) {
+  const days = Array.from({ length: 30 }, (_, i) => {
+    const d = subDays(new Date(), 29 - i)
+    return { d, str: format(d, 'yyyy-MM-dd') }
+  })
+  const max = Math.max(...days.map(({ str }) =>
+    sessions.filter(s => s.date === str).reduce((sum, s) => sum + s.durationMinutes, 0)
+  ), 1)
+
+  return (
+    <div className="flex items-end gap-0.5" style={{ height: '3rem' }} aria-label="Lernaktivität letzte 30 Tage" role="img">
+      {days.map(({ d, str }) => {
+        const total    = sessions.filter(s => s.date === str).reduce((sum, s) => sum + s.durationMinutes, 0)
+        const today    = isToday(d)
+        const heightPct = total > 0 ? Math.max((total / max) * 100, 10) : 3
+        return (
+          <div
+            key={str}
+            className="flex-1 rounded-sm"
+            style={{
+              height:     `${heightPct}%`,
+              background: total === 0
+                ? 'var(--th-border)'
+                : today
+                  ? 'var(--th-accent)'
+                  : 'color-mix(in srgb, var(--th-accent) 55%, transparent)',
+              transition: 'height 400ms ease',
+            }}
+            title={`${format(d, 'dd.MM.', { locale: de })}: ${total} min`}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
+// ─── Per-module time breakdown (last 30 days) ─────────────────────────────────
+
+function ModuleTimeChart({
+  modules,
+  sessions,
+  sinceDate,
+}: {
+  modules: { id: string; name: string; color: string }[]
+  sessions: { moduleId: string; durationMinutes: number; date: string }[]
+  sinceDate: string
+}) {
+  const rows = modules
+    .map(m => ({
+      ...m,
+      minutes: sessions.filter(s => s.moduleId === m.id && s.date >= sinceDate)
+        .reduce((sum, s) => sum + s.durationMinutes, 0),
+    }))
+    .filter(r => r.minutes > 0)
+    .sort((a, b) => b.minutes - a.minutes)
+
+  if (rows.length === 0) return null
+
+  const maxMin = rows[0].minutes
+
+  return (
+    <ul className="space-y-3" role="list">
+      {rows.map(r => (
+        <li key={r.id} className="flex items-center gap-3">
+          <span
+            className="w-2.5 h-2.5 rounded-full shrink-0"
+            aria-hidden="true"
+            style={{ backgroundColor: r.color }}
+          />
+          <span className="flex-1 text-sm truncate" style={{ color: 'var(--th-text-2)' }}>
+            {r.name}
+          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="w-20 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--th-border)' }}>
+              <div
+                className="h-full rounded-full"
+                style={{ width: `${(r.minutes / maxMin) * 100}%`, backgroundColor: r.color }}
+              />
+            </div>
+            <span className="text-xs w-12 text-right font-mono" style={{ color: 'var(--th-text-3)' }}>
+              {r.minutes >= 60
+                ? `${Math.floor(r.minutes / 60)}h ${r.minutes % 60}m`
+                : `${r.minutes}m`}
+            </span>
+          </div>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 // ─── Gesamtnote widget (reads grade config from localStorage) ─────────────────
 
 function GesamtnoteWidget() {
@@ -296,7 +389,8 @@ export default function Dashboard() {
   const { data }  = useApp()
   const { user }  = useAuth()
   const today     = format(new Date(), 'yyyy-MM-dd')
-  const weekAgo   = format(new Date(Date.now() - 7 * 86400000), 'yyyy-MM-dd')
+  const weekAgo   = format(new Date(Date.now() -  7 * 86400000), 'yyyy-MM-dd')
+  const monthAgo  = format(new Date(Date.now() - 30 * 86400000), 'yyyy-MM-dd')
 
   const dueCards          = getDueCards(data.flashcards)
   const activeModules     = data.modules.filter(m => m.status === 'aktiv')
@@ -385,7 +479,7 @@ export default function Dashboard() {
       )}
 
       {/* ── Stat cards ──────────────────────────────────────────── */}
-      <section aria-label="Lernstatistiken" className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-8">
+      <section aria-label="Lernstatistiken" className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 md:gap-4 mb-8">
         <StatCard
           icon={BookOpen}
           label="Aktive Module"
@@ -417,6 +511,14 @@ export default function Dashboard() {
           sub={studyStreak > 0 ? 'Weiter so!' : 'Starte heute!'}
           color={studyStreak >= 3 ? 'orange' : 'green'}
         />
+        <StatCard
+          icon={Clock}
+          label="Lernminuten gesamt"
+          value={data.sessions.reduce((sum, s) => sum + s.durationMinutes, 0)}
+          sub={`${data.sessions.length} Sessions`}
+          color="blue"
+          to="/kalender"
+        />
       </section>
 
       {/* ── Main grid ───────────────────────────────────────────── */}
@@ -425,16 +527,18 @@ export default function Dashboard() {
         {/* Left column — 2/3 width */}
         <div className="xl:col-span-2 space-y-6">
 
-          {/* Study activity chart */}
+          {/* Study activity charts */}
           <section aria-labelledby="chart-heading" className="th-card p-6">
             <div className="flex items-center justify-between mb-5">
               <h2 id="chart-heading" className="th-section-title">
-                Lernaktivität diese Woche
+                Lernaktivität
               </h2>
               <span className="text-sm font-semibold" style={{ color: 'var(--th-text-2)' }}>
-                {weekMinutes} min
+                {weekMinutes} min diese Woche
               </span>
             </div>
+
+            {/* Weekly bars */}
             {weekSessions.length > 0 ? (
               <WeekChart sessions={data.sessions} />
             ) : (
@@ -455,7 +559,38 @@ export default function Dashboard() {
                 </Link>
               </div>
             )}
+
+            {/* 30-day strip */}
+            {data.sessions.length > 0 && (
+              <div className="mt-5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium" style={{ color: 'var(--th-text-3)' }}>
+                    Letzte 30 Tage
+                  </span>
+                  <span className="text-xs" style={{ color: 'var(--th-text-3)' }}>
+                    {data.sessions.filter(s => s.date >= monthAgo).reduce((sum, s) => sum + s.durationMinutes, 0)} min gesamt
+                  </span>
+                </div>
+                <MonthChart sessions={data.sessions} />
+              </div>
+            )}
           </section>
+
+          {/* Per-module time breakdown */}
+          {data.sessions.filter(s => s.date >= monthAgo).length > 0 && (
+            <section aria-labelledby="modtime-heading" className="th-card p-6">
+              <div className="flex items-center gap-2 mb-5">
+                <BarChart2 size={16} aria-hidden="true" style={{ color: 'var(--th-accent)' }} />
+                <h2 id="modtime-heading" className="th-section-title">Lernzeit pro Modul</h2>
+                <span className="text-xs ml-auto" style={{ color: 'var(--th-text-3)' }}>30 Tage</span>
+              </div>
+              <ModuleTimeChart
+                modules={data.modules}
+                sessions={data.sessions}
+                sinceDate={monthAgo}
+              />
+            </section>
+          )}
 
           {/* Active modules progress */}
           {activeModules.length > 0 && (

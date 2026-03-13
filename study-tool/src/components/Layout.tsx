@@ -1,11 +1,16 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, BookOpen, FileText, BrainCircuit,
   Calendar, Settings, LogOut, ShieldCheck, Menu, X,
-  GraduationCap, ChevronLeft, ChevronRight, Calculator, Timer,
+  GraduationCap, ChevronLeft, ChevronRight, Calculator, Timer, Search,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useApp } from '../context/AppContext'
+import { getDueCards } from '../utils/spaceRepetition'
+import { checkAndSendReminders } from '../utils/notifications'
+import { differenceInDays, parseISO } from 'date-fns'
+import GlobalSearch from './GlobalSearch'
 
 const navItems = [
   { to: '/',              icon: LayoutDashboard, label: 'Dashboard',       end: true },
@@ -54,10 +59,12 @@ function SidebarContent({
   collapsed = false,
   onToggle,
   onClose,
+  onSearchOpen,
 }: {
   collapsed?: boolean
   onToggle?: () => void
   onClose?: () => void
+  onSearchOpen?: () => void
 }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -135,6 +142,36 @@ function SidebarContent({
           </button>
         )}
       </div>
+
+      {/* ── Search button ───────────────────────────────────────── */}
+      {onSearchOpen && (
+        <div className="px-2 pt-3 pb-1">
+          <button
+            type="button"
+            onClick={onSearchOpen}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors"
+            style={{
+              background: 'rgba(255,255,255,0.08)',
+              color: 'var(--th-sidebar-muted)',
+              border: '1px solid rgba(255,255,255,0.06)',
+            }}
+            aria-label="Suche öffnen (Strg+K)"
+          >
+            <Search size={14} aria-hidden="true" style={{ flexShrink: 0 }} />
+            {!collapsed && (
+              <>
+                <span className="flex-1 text-left text-xs" style={{ opacity: 0.75 }}>Suchen…</span>
+                <kbd
+                  className="font-mono text-[10px] px-1 rounded"
+                  style={{ background: 'rgba(255,255,255,0.10)', opacity: 0.6 }}
+                >
+                  ⌘K
+                </kbd>
+              </>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* ── Navigation ──────────────────────────────────────────── */}
       <nav
@@ -250,10 +287,34 @@ function SidebarContent({
 }
 
 export default function Layout() {
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [collapsed, setCollapsed] = useState(false)
+  const [mobileOpen,  setMobileOpen]  = useState(false)
+  const [collapsed,   setCollapsed]   = useState(false)
+  const [searchOpen,  setSearchOpen]  = useState(false)
+  const { data }                      = useApp()
 
   const sidebarW = collapsed ? SIDEBAR_MINI : SIDEBAR_FULL
+
+  // Cmd+K / Ctrl+K global shortcut
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setSearchOpen(o => !o)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  // Smart daily reminders (runs once on mount when permission is already granted)
+  useEffect(() => {
+    const dueCards     = getDueCards(data.flashcards)
+    const upcomingExams = data.events
+      .filter(e => e.type === 'pruefung' && parseISO(e.date) >= new Date())
+      .map(e => ({ title: e.title, daysUntil: differenceInDays(parseISO(e.date), new Date()) }))
+    checkAndSendReminders({ dueCards: dueCards.length, upcomingExams })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <>
@@ -279,7 +340,7 @@ export default function Layout() {
           style={{ width: sidebarW }}
           aria-label="Seitenleiste"
         >
-          <SidebarContent collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />
+          <SidebarContent collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} onSearchOpen={() => setSearchOpen(true)} />
         </aside>
 
         {/* ── Mobile overlay ───────────────────────────────────────── */}
@@ -304,7 +365,7 @@ export default function Layout() {
           aria-hidden={!mobileOpen}
           inert={!mobileOpen ? '' as unknown as boolean : undefined}
         >
-          <SidebarContent onClose={() => setMobileOpen(false)} />
+          <SidebarContent onClose={() => setMobileOpen(false)} onSearchOpen={() => { setMobileOpen(false); setSearchOpen(true) }} />
         </aside>
 
         {/* ── Main content area ─────────────────────────────────────── */}
@@ -327,7 +388,7 @@ export default function Layout() {
             >
               <Menu size={22} aria-hidden="true" />
             </button>
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
               <GraduationCap size={18} style={{ color: 'var(--th-sidebar-text)', opacity: 0.8 }} aria-hidden="true" />
               <span
                 className="text-sm font-bold truncate"
@@ -336,6 +397,14 @@ export default function Layout() {
                 Study Organizer
               </span>
             </div>
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="th-icon-btn shrink-0"
+              aria-label="Suche öffnen"
+              style={{ color: 'var(--th-sidebar-text)', opacity: 0.75 }}
+            >
+              <Search size={20} aria-hidden="true" />
+            </button>
           </header>
 
           {/* Floating content card — on desktop: 12 px gap on top/right/bottom,
@@ -353,6 +422,8 @@ export default function Layout() {
           </div>
         </div>
       </div>
+
+      {searchOpen && <GlobalSearch onClose={() => setSearchOpen(false)} />}
     </>
   )
 }

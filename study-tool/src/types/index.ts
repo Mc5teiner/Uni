@@ -87,10 +87,13 @@ export interface Bookmark {
   createdAt: string
 }
 
+export type NoteColor = 'yellow' | 'green' | 'blue' | 'pink'
+
 export interface DocumentNote {
   id: string
   page: number
   text: string
+  color?: NoteColor
   createdAt: string
 }
 
