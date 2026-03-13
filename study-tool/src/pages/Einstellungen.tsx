@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useTheme, THEMES, type ThemeId } from '../context/ThemeContext'
 import { auth, caldav, data as dataApi, formatBytes, type CaldavSettings } from '../api/client'
 import { exportData, importData } from '../utils/storage'
-import { requestNotificationPermission } from '../utils/notifications'
+import { requestNotificationPermission, sendNotification, checkAndSendReminders } from '../utils/notifications'
 import {
   Download, Upload, Bell, Trash2, Info, User, Calendar,
   Eye, EyeOff, Check, X, RefreshCw, Link as LinkIcon,
@@ -403,7 +403,27 @@ export default function EinstellungenPage() {
 
   const handleNotifications = async () => {
     const granted = await requestNotificationPermission()
-    alert(granted ? 'Benachrichtigungen aktiviert!' : 'Benachrichtigungen wurden abgelehnt.')
+    if (granted) {
+      sendNotification('Benachrichtigungen aktiviert', 'Du erhältst jetzt Erinnerungen für fällige Karteikarten und Prüfungen.', 'setup')
+    } else {
+      alert('Benachrichtigungen wurden abgelehnt. Bitte erlaube sie in den Browser-Einstellungen.')
+    }
+  }
+
+  const handleTestNotification = () => {
+    const dueCards      = data.flashcards.filter(c => c.dueDate <= new Date().toISOString().slice(0, 10)).length
+    const upcomingExams = data.events
+      .filter(e => e.type === 'pruefung')
+      .map(e => {
+        const d = new Date(e.date)
+        const daysUntil = Math.ceil((d.getTime() - Date.now()) / 86400000)
+        return { title: e.title, daysUntil }
+      })
+      .filter(e => e.daysUntil >= 0 && e.daysUntil <= 7)
+    checkAndSendReminders({ dueCards, upcomingExams })
+    if (dueCards === 0 && upcomingExams.length === 0) {
+      sendNotification('Alles auf dem neuesten Stand!', 'Keine fälligen Karten oder bevorstehenden Prüfungen.', 'test')
+    }
   }
 
   const totalMinutes = data.sessions.reduce((sum, s) => sum + s.durationMinutes, 0)
@@ -467,14 +487,38 @@ export default function EinstellungenPage() {
       {/* Notifications */}
       <div className="th-card p-5 mb-6">
         <h2 className="font-semibold th-text mb-4 flex items-center gap-2"><Bell size={16} /> Benachrichtigungen</h2>
-        <p className="text-sm th-text-2 mb-4">
-          {typeof Notification !== 'undefined' && Notification.permission === 'granted'
-            ? <span style={{ color: 'var(--th-success)', display: 'flex', alignItems: 'center', gap: '4px' }}><Check size={14} /> Benachrichtigungen aktiviert</span>
-            : 'Aktiviere Browser-Benachrichtigungen für Lernreminder und Terminhinweise.'}
-        </p>
-        <button onClick={handleNotifications} className="th-btn th-btn-secondary px-4 py-2 text-sm">
-          <Bell size={16} /> Benachrichtigungen aktivieren
-        </button>
+
+        {typeof Notification === 'undefined' ? (
+          <p className="text-sm th-text-3">Dein Browser unterstützt keine Benachrichtigungen.</p>
+        ) : Notification.permission === 'granted' ? (
+          <>
+            <div className="flex items-center gap-2 text-sm mb-4" style={{ color: '#16a34a' }}>
+              <Check size={15} aria-hidden="true" /> Benachrichtigungen sind aktiv
+            </div>
+            <ul className="text-sm space-y-1.5 mb-4" style={{ color: 'var(--th-text-2)' }}>
+              <li>• Fällige Karteikarten (max. einmal alle 12 Stunden)</li>
+              <li>• Prüfungen innerhalb der nächsten 7 Tage</li>
+              <li>• Werden beim Öffnen der App geprüft</li>
+            </ul>
+            <button onClick={handleTestNotification} className="th-btn th-btn-secondary gap-2 text-sm">
+              <Bell size={15} /> Testbenachrichtigung senden
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="text-sm th-text-2 mb-4">
+              Aktiviere Browser-Benachrichtigungen, um an fällige Karteikarten und bevorstehende Prüfungen erinnert zu werden.
+            </p>
+            <button onClick={handleNotifications} className="th-btn th-btn-primary gap-2 text-sm">
+              <Bell size={15} /> Benachrichtigungen aktivieren
+            </button>
+            {Notification.permission === 'denied' && (
+              <p className="text-xs mt-2" style={{ color: 'var(--th-danger)' }}>
+                Benachrichtigungen wurden blockiert. Bitte erlaube sie in den Browser-Einstellungen (Adressleiste).
+              </p>
+            )}
+          </>
+        )}
       </div>
 
       {/* FernUni links */}
