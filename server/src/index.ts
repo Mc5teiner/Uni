@@ -63,6 +63,7 @@ import adminRouter          from './routes/admin'
 import settingsRouter       from './routes/settings'
 import caldavRouter         from './routes/caldav'
 import sharedDocumentsRouter from './routes/sharedDocuments'
+import sharedDecksRouter     from './routes/sharedDecks'
 
 const app  = express()
 const PORT = parseInt(process.env.PORT ?? '3000', 10)
@@ -144,6 +145,7 @@ app.use('/api/admin',            adminRouter)
 app.use('/api/settings',         settingsRouter)
 app.use('/api/caldav',           caldavRouter)
 app.use('/api/shared-documents', sharedDocumentsRouter)
+app.use('/api/shared-decks',     sharedDecksRouter)
 
 // ─── Static frontend (production) ────────────────────────────────────────────
 

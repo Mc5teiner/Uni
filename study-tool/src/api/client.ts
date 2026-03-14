@@ -11,6 +11,7 @@
 import type {
   AppData, StudyModule, StudyDocument, Flashcard, FlashcardDeck,
   CalendarEvent, StudySession, StudyGoal, SharedDocument, SharedDocAdmin,
+  SharedDeck,
 } from '../types'
 
 export interface PublicUser {
@@ -305,6 +306,31 @@ export const adminSharedDocs = {
 
   delete: (id: string, force = false) =>
     req<{ ok: boolean }>('DELETE', `/api/admin/shared-documents/${id}${force ? '?force=1' : ''}`),
+}
+
+// ─── Shared Decks ─────────────────────────────────────────────────────────────
+
+export const sharedDecks = {
+  list: () =>
+    req<SharedDeck[]>('GET', '/api/shared-decks'),
+
+  get: (id: string) =>
+    req<SharedDeck>('GET', `/api/shared-decks/${id}`),
+
+  publish: (body: {
+    name: string
+    description?: string
+    moduleName?: string
+    cards: { front: string; back: string; frontImage?: string; backImage?: string; tags: string[] }[]
+  }) => req<{ id: string }>('POST', '/api/shared-decks', body),
+
+  delete: (id: string) =>
+    req<{ ok: boolean }>('DELETE', `/api/shared-decks/${id}`),
+
+  clone: (id: string, moduleId: string) =>
+    req<{ ok: boolean; deckId: string; cardCount: number }>(
+      'POST', `/api/shared-decks/${id}/clone`, { moduleId }
+    ),
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
