@@ -125,6 +125,8 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
 export const auth = {
   checkSetup: () => req<{ setupNeeded: boolean }>('GET', '/api/auth/check-setup'),
 
+  registrationStatus: () => req<{ open: boolean }>('GET', '/api/auth/registration-status'),
+
   setup: (body: { username: string; email: string; password: string; name: string }) =>
     req<{ ok: boolean }>('POST', '/api/auth/setup', body),
 

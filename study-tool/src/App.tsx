@@ -10,6 +10,7 @@ import KarteikartenPage from './pages/Karteikarten'
 import KalenderPage from './pages/Kalender'
 import EinstellungenPage from './pages/Einstellungen'
 import LoginPage from './pages/Login'
+import RegisterPage from './pages/Register'
 import SetupPage from './pages/SetupPage'
 import ForgotPasswordPage from './pages/ForgotPassword'
 import ResetPasswordPage from './pages/ResetPassword'
@@ -51,6 +52,7 @@ export default function App() {
         <Routes>
           {/* Public auth routes */}
           <Route path="/login"          element={<LoginPage />} />
+          <Route path="/register"       element={<RegisterPage />} />
           <Route path="/setup"          element={<SetupPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password"  element={<ResetPasswordPage />} />

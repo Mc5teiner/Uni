@@ -2,13 +2,13 @@ import { useRef, useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
 import { useTheme, THEMES, type ThemeId } from '../context/ThemeContext'
-import { auth, caldav, data as dataApi, sharedDocuments as sharedDocsApi, formatBytes, type CaldavSettings } from '../api/client'
+import { auth, caldav, data as dataApi, sharedDocuments as sharedDocsApi, settings as settingsApi, formatBytes, type CaldavSettings } from '../api/client'
 import { exportData, fullExportData, readBackupFile, type BackupSummary } from '../utils/storage'
 import { requestNotificationPermission, sendNotification, checkAndSendReminders } from '../utils/notifications'
 import {
   Download, Upload, Bell, Trash2, Info, User, Calendar,
   Eye, EyeOff, Check, X, RefreshCw, Link as LinkIcon,
-  Globe, Lock, Palette, FileArchive, AlertTriangle, Loader2,
+  Globe, Lock, Palette, FileArchive, AlertTriangle, Loader2, UserPlus, ShieldCheck,
 } from 'lucide-react'
 
 // ─── Profile section ──────────────────────────────────────────────────────────
@@ -385,6 +385,92 @@ function ThemeSection() {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
+// ─── Admin: Registration toggle ───────────────────────────────────────────────
+
+function RegistrationSection() {
+  const [isOpen,  setIsOpen]  = useState<boolean | null>(null)
+  const [saving,  setSaving]  = useState(false)
+  const [msg,     setMsg]     = useState<{ ok: boolean; text: string } | null>(null)
+
+  useEffect(() => {
+    auth.registrationStatus().then(s => setIsOpen(s.open)).catch(() => setIsOpen(false))
+  }, [])
+
+  async function toggle() {
+    if (isOpen === null) return
+    setSaving(true); setMsg(null)
+    const next = !isOpen
+    try {
+      await settingsApi.update({ open_registration: next ? 'true' : 'false' })
+      setIsOpen(next)
+      setMsg({ ok: true, text: next ? 'Registrierung ist jetzt geöffnet.' : 'Registrierung wurde deaktiviert.' })
+    } catch (err) {
+      setMsg({ ok: false, text: (err as Error).message })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="th-card p-5 mb-6">
+      <h2 className="font-semibold th-text mb-1 flex items-center gap-2">
+        <ShieldCheck size={16} /> Registrierung (Admin)
+      </h2>
+      <p className="text-xs th-text-3 mb-4">
+        Steuert, ob neue Benutzer sich selbst über die Login-Seite registrieren können.
+        Deaktiviere dies, wenn du keine weiteren Anmeldungen möchtest.
+      </p>
+
+      {msg && (
+        <div className="mb-3 px-3 py-2 rounded-lg text-sm" style={{
+          background: msg.ok ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)',
+          color: msg.ok ? '#15803d' : '#dc2626',
+        }}>
+          {msg.text}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: isOpen ? 'rgba(22,163,74,0.12)' : 'rgba(100,116,139,0.12)' }}
+          >
+            <UserPlus size={18} style={{ color: isOpen ? '#16a34a' : 'var(--th-text-3)' }} />
+          </div>
+          <div>
+            <div className="text-sm font-medium th-text">
+              Selbstregistrierung {isOpen === null ? '…' : isOpen ? 'aktiviert' : 'deaktiviert'}
+            </div>
+            <div className="text-xs th-text-3">
+              {isOpen
+                ? 'Benutzer sehen auf der Login-Seite den „Registrieren"-Button.'
+                : 'Der Registrieren-Button ist ausgeblendet; nur Admins können Konten anlegen.'}
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={toggle}
+          disabled={saving || isOpen === null}
+          className="shrink-0 flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+          style={
+            isOpen
+              ? { background: 'rgba(220,38,38,0.1)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.3)' }
+              : { background: 'rgba(22,163,74,0.1)', color: '#16a34a', border: '1px solid rgba(22,163,74,0.3)' }
+          }
+        >
+          {saving
+            ? <RefreshCw size={14} className="animate-spin" />
+            : isOpen ? <X size={14} /> : <Check size={14} />
+          }
+          {isOpen ? 'Deaktivieren' : 'Aktivieren'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function EinstellungenPage() {
   const { data }                                  = useApp()
   const importRef                                 = useRef<HTMLInputElement>(null)
@@ -744,6 +830,9 @@ export default function EinstellungenPage() {
           <div>• Bibliothek: bibliothek.fernuni-hagen.de</div>
         </div>
       </div>
+
+      {/* Admin: Registration */}
+      {user?.role === 'admin' && <RegistrationSection />}
 
       {/* Danger zone */}
       <div className="rounded-xl p-5" style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.25)' }}>

@@ -64,6 +64,12 @@ router.get('/check-setup', (_req, res) => {
   res.json({ setupNeeded: count === 0 })
 })
 
+/** Public: returns whether self-registration is currently enabled */
+router.get('/registration-status', (_req, res) => {
+  const settings = getSettings() as unknown as AppSettings
+  res.json({ open: settings.open_registration === 'true' })
+})
+
 /** Create first admin account — only works if no users exist */
 router.post('/setup', async (req, res) => {
   const count = (db.prepare('SELECT COUNT(*) as c FROM users').get() as { c: number }).c
