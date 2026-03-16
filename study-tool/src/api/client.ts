@@ -11,6 +11,7 @@
 import type {
   AppData, StudyModule, StudyDocument, Flashcard, FlashcardDeck,
   CalendarEvent, StudySession, StudyGoal, SharedDocument, SharedDocAdmin,
+  SharedDeck,
 } from '../types'
 
 export interface PublicUser {
@@ -123,6 +124,8 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
 
 export const auth = {
   checkSetup: () => req<{ setupNeeded: boolean }>('GET', '/api/auth/check-setup'),
+
+  registrationStatus: () => req<{ open: boolean }>('GET', '/api/auth/registration-status'),
 
   setup: (body: { username: string; email: string; password: string; name: string }) =>
     req<{ ok: boolean }>('POST', '/api/auth/setup', body),
@@ -268,6 +271,21 @@ export const caldav = {
   testConnection: (body: { serverUrl: string; username: string; password: string }) =>
     req<{ ok: boolean; discoveredUrl?: string }>('POST', '/api/caldav/test', body),
   fetchEvents:    () => req<CaldavEvent[]>('GET', '/api/caldav/events'),
+
+  /** Push (create or update) an event to the CalDAV server. Returns the UID used. */
+  pushEvent: (body: {
+    uid?: string
+    title: string
+    date: string
+    time?: string
+    endTime?: string
+    description?: string
+    eventType?: string
+  }) => req<{ uid: string }>('POST', '/api/caldav/push', body),
+
+  /** Delete an event from the CalDAV server by its CalDAV UID. */
+  deleteEvent: (caldavUid: string) =>
+    req<{ ok: boolean }>('DELETE', `/api/caldav/push/${encodeURIComponent(caldavUid)}`),
 }
 
 // ─── Shared Documents ────────────────────────────────────────────────────────
@@ -305,6 +323,31 @@ export const adminSharedDocs = {
 
   delete: (id: string, force = false) =>
     req<{ ok: boolean }>('DELETE', `/api/admin/shared-documents/${id}${force ? '?force=1' : ''}`),
+}
+
+// ─── Shared Decks ─────────────────────────────────────────────────────────────
+
+export const sharedDecks = {
+  list: () =>
+    req<SharedDeck[]>('GET', '/api/shared-decks'),
+
+  get: (id: string) =>
+    req<SharedDeck>('GET', `/api/shared-decks/${id}`),
+
+  publish: (body: {
+    name: string
+    description?: string
+    moduleName?: string
+    cards: { front: string; back: string; frontImage?: string; backImage?: string; tags: string[] }[]
+  }) => req<{ id: string }>('POST', '/api/shared-decks', body),
+
+  delete: (id: string) =>
+    req<{ ok: boolean }>('DELETE', `/api/shared-decks/${id}`),
+
+  clone: (id: string, moduleId: string) =>
+    req<{ ok: boolean; deckId: string; cardCount: number }>(
+      'POST', `/api/shared-decks/${id}/clone`, { moduleId }
+    ),
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

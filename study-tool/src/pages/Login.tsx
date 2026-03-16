@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { Eye, EyeOff, LogIn, GraduationCap, AlertCircle } from 'lucide-react'
+import { auth } from '../api/client'
+import { Eye, EyeOff, LogIn, GraduationCap, AlertCircle, UserPlus } from 'lucide-react'
 
 export default function LoginPage() {
   const { login }  = useAuth()
@@ -9,11 +10,16 @@ export default function LoginPage() {
   const location   = useLocation()
   const from       = (location.state as { from?: string })?.from ?? '/'
 
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [showPw,   setShowPw]   = useState(false)
-  const [error,    setError]    = useState('')
-  const [loading,  setLoading]  = useState(false)
+  const [username,          setUsername]          = useState('')
+  const [password,          setPassword]          = useState('')
+  const [showPw,            setShowPw]            = useState(false)
+  const [error,             setError]             = useState('')
+  const [loading,           setLoading]           = useState(false)
+  const [registrationOpen,  setRegistrationOpen]  = useState(false)
+
+  useEffect(() => {
+    auth.registrationStatus().then(s => setRegistrationOpen(s.open)).catch(() => { /* ignore */ })
+  }, [])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -251,6 +257,22 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          {registrationOpen && (
+            <div className="mt-6 pt-6" style={{ borderTop: '1px solid var(--th-border)' }}>
+              <p className="text-sm text-center mb-3" style={{ color: 'var(--th-text-3)' }}>
+                Noch kein Konto?
+              </p>
+              <Link
+                to="/register"
+                className="th-btn w-full flex items-center justify-center gap-2 text-sm font-medium"
+                style={{ border: '1px solid var(--th-border)', color: 'var(--th-text-2)', background: 'var(--th-card)' }}
+              >
+                <UserPlus size={16} aria-hidden="true" />
+                Kostenlos registrieren
+              </Link>
+            </div>
+          )}
         </div>
       </div>
 

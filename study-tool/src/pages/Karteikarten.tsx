@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
-import type { Flashcard, FlashcardDifficulty } from '../types'
+import type { Flashcard, FlashcardDifficulty, SharedDeck } from '../types'
 import { applyReview, getDueCards, getDifficultyLabel, getDifficultyColor } from '../utils/spaceRepetition'
 import { format, parseISO, differenceInDays } from 'date-fns'
-import { Plus, BrainCircuit, Check, X, Pencil, Layers, Tag, ImageIcon, RefreshCw, ZoomIn, Download, Upload, ChevronDown, AlertCircle, CheckCircle2, ListChecks, Trophy } from 'lucide-react'
+import { Plus, BrainCircuit, Check, X, Pencil, Layers, Tag, ImageIcon, RefreshCw, ZoomIn, Download, Upload, ChevronDown, AlertCircle, CheckCircle2, ListChecks, Trophy, Globe, Share2, LogIn } from 'lucide-react'
 import { downloadAnkiExport, parseAnkiTxt, type ImportedCard } from '../utils/ankiIO'
+import { sharedDecks as sharedDecksApi } from '../api/client'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -591,6 +592,81 @@ export default function KarteikartenPage() {
   const [importResult, setImportResult] = useState<{ count: number; skipped: number } | null>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
 
+  // Community tab
+  const [activeTab, setActiveTab] = useState<'meine' | 'community'>('meine')
+  const [communityDecks, setCommunityDecks] = useState<SharedDeck[]>([])
+  const [communityLoading, setCommunityLoading] = useState(false)
+  const [communityError, setCommunityError] = useState<string | null>(null)
+
+  // Share deck dialog
+  const [showShareDialog, setShowShareDialog] = useState(false)
+  const [shareSuccess, setShareSuccess] = useState<string | null>(null)
+
+  // Clone dialog
+  const [cloneTarget, setCloneTarget] = useState<SharedDeck | null>(null)
+  const [cloneModuleId, setCloneModuleId] = useState('')
+  const [cloneLoading, setCloneLoading] = useState(false)
+
+  const loadCommunity = async () => {
+    setCommunityLoading(true)
+    setCommunityError(null)
+    try {
+      const decks = await sharedDecksApi.list()
+      setCommunityDecks(decks)
+    } catch (e) {
+      setCommunityError((e as Error).message)
+    } finally {
+      setCommunityLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'community') loadCommunity()
+  }, [activeTab])
+
+  const handleShareDeck = async (name: string, description: string) => {
+    if (allCards.length === 0) return
+    const moduleName = activeModuleId
+      ? data.modules.find(m => m.id === activeModuleId)?.name
+      : undefined
+    try {
+      await sharedDecksApi.publish({
+        name,
+        description: description || undefined,
+        moduleName,
+        cards: allCards.map(c => ({
+          front: c.front,
+          back: c.back,
+          frontImage: c.frontImage,
+          backImage: c.backImage,
+          tags: c.tags,
+        })),
+      })
+      setShowShareDialog(false)
+      setShareSuccess(`Deck „${name}" wurde geteilt (${allCards.length} Karten).`)
+      setTimeout(() => setShareSuccess(null), 5000)
+    } catch (e) {
+      alert('Fehler: ' + (e as Error).message)
+    }
+  }
+
+  const handleClone = async () => {
+    if (!cloneTarget || !cloneModuleId) return
+    setCloneLoading(true)
+    try {
+      const result = await sharedDecksApi.clone(cloneTarget.id, cloneModuleId)
+      setCloneTarget(null)
+      setCloneModuleId('')
+      // Reload app data so the new cards appear
+      window.location.reload()
+      void result
+    } catch (e) {
+      alert('Fehler: ' + (e as Error).message)
+    } finally {
+      setCloneLoading(false)
+    }
+  }
+
   const activeModuleId = filterModuleId === 'alle' ? undefined : filterModuleId
 
   // Base filter: module
@@ -785,6 +861,64 @@ export default function KarteikartenPage() {
         </div>
       )}
 
+      {/* Share success toast */}
+      {shareSuccess && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-xl text-sm font-semibold"
+          style={{ background: '#16a34a', color: 'white' }}
+        >
+          <CheckCircle2 size={16} /> {shareSuccess}
+        </div>
+      )}
+
+      {/* Share deck dialog */}
+      {showShareDialog && (
+        <ShareDeckDialog
+          cardCount={allCards.length}
+          onShare={handleShareDeck}
+          onCancel={() => setShowShareDialog(false)}
+        />
+      )}
+
+      {/* Clone dialog */}
+      {cloneTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="th-card p-6 max-w-md w-full shadow-2xl">
+            <h3 className="font-semibold th-text mb-1">Deck übernehmen</h3>
+            <p className="text-sm th-text-2 mb-4">
+              „{cloneTarget.name}" ({cloneTarget.cardCount} Karten) wird in dein Konto kopiert.
+              Wähle das Modul, dem die Karten zugeordnet werden sollen:
+            </p>
+            {data.modules.length === 0 ? (
+              <p className="text-sm text-red-600 mb-4">Du hast noch keine Module. Lege zuerst ein Modul an.</p>
+            ) : (
+              <select
+                className="th-input w-full mb-4"
+                value={cloneModuleId}
+                onChange={e => setCloneModuleId(e.target.value)}
+              >
+                <option value="">— Modul wählen —</option>
+                {data.modules.map(m => (
+                  <option key={m.id} value={m.id}>{m.moduleNumber} {m.name}</option>
+                ))}
+              </select>
+            )}
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setCloneTarget(null)} className="th-btn px-4 py-2 text-sm" style={{ color: 'var(--th-text-2)' }}>
+                Abbrechen
+              </button>
+              <button
+                onClick={handleClone}
+                disabled={!cloneModuleId || cloneLoading}
+                className="th-btn th-btn-primary flex items-center gap-2 px-4 py-2 text-sm disabled:opacity-50"
+              >
+                {cloneLoading ? <RefreshCw size={14} className="animate-spin" /> : <LogIn size={14} />}
+                Übernehmen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold th-text">Karteikarten</h1>
@@ -894,6 +1028,17 @@ export default function KarteikartenPage() {
             )}
           </div>
 
+          {allCards.length > 0 && activeTab === 'meine' && (
+            <button
+              onClick={() => setShowShareDialog(true)}
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border transition-colors"
+              style={{ borderColor: 'var(--th-border)', color: 'var(--th-text-2)', background: 'var(--th-card)' }}
+              title="Aktuelle Karten als Community-Deck teilen"
+            >
+              <Share2 size={15} /> Teilen
+            </button>
+          )}
+
           <button
             onClick={() => { setEditCard(undefined); setShowForm(true) }}
             className="flex items-center gap-2 px-4 py-2 th-btn th-btn-primary transition-colors text-sm font-medium"
@@ -902,6 +1047,77 @@ export default function KarteikartenPage() {
           </button>
         </div>
       </div>
+
+      {/* Tab switcher */}
+      <div className="flex gap-1 mb-6 border-b" style={{ borderColor: 'var(--th-border)' }}>
+        <button
+          onClick={() => setActiveTab('meine')}
+          className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${activeTab === 'meine' ? 'border-blue-600 text-blue-600' : 'border-transparent th-text-2 hover:th-text'}`}
+        >
+          <Layers size={14} /> Meine Karten
+        </button>
+        <button
+          onClick={() => setActiveTab('community')}
+          className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${activeTab === 'community' ? 'border-blue-600 text-blue-600' : 'border-transparent th-text-2 hover:th-text'}`}
+        >
+          <Globe size={14} /> Community-Decks
+        </button>
+      </div>
+
+      {/* ─── Community Tab ──────────────────────────────────────────────── */}
+      {activeTab === 'community' && (
+        <div>
+          {communityLoading && (
+            <div className="flex items-center justify-center py-20 th-text-3">
+              <RefreshCw size={20} className="animate-spin mr-2" /> Lade Community-Decks…
+            </div>
+          )}
+          {communityError && (
+            <div className="text-center py-16">
+              <AlertCircle size={32} className="mx-auto mb-2 text-red-500" />
+              <p className="text-sm text-red-600">{communityError}</p>
+              <button onClick={loadCommunity} className="mt-4 text-sm th-text-2 underline">Nochmal versuchen</button>
+            </div>
+          )}
+          {!communityLoading && !communityError && communityDecks.length === 0 && (
+            <div className="text-center py-20 th-text-3">
+              <Globe size={48} className="mx-auto mb-4 opacity-30" />
+              <p className="text-lg font-medium">Noch keine geteilten Decks</p>
+              <p className="text-sm mt-1">Sei der Erste und teile deine Karten!</p>
+            </div>
+          )}
+          {!communityLoading && !communityError && communityDecks.length > 0 && (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {communityDecks.map(deck => (
+                <div key={deck.id} className="th-card p-5 flex flex-col gap-3">
+                  <div>
+                    <div className="font-semibold th-text mb-0.5 truncate">{deck.name}</div>
+                    {deck.moduleName && (
+                      <div className="text-xs th-text-3 mb-1">{deck.moduleName}</div>
+                    )}
+                    {deck.description && (
+                      <p className="text-sm th-text-2 line-clamp-2">{deck.description}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between text-xs th-text-3">
+                    <span>{deck.cardCount} Karten</span>
+                    <span>von {deck.ownerName}</span>
+                  </div>
+                  <button
+                    onClick={() => { setCloneTarget(deck); setCloneModuleId(data.modules[0]?.id ?? '') }}
+                    className="flex items-center justify-center gap-2 px-3 py-2 th-btn th-btn-primary text-sm font-medium w-full"
+                  >
+                    <LogIn size={14} /> Übernehmen
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── Meine Karten Tab ───────────────────────────────────────────── */}
+      {activeTab === 'meine' && <>
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4 mb-6">
@@ -1042,6 +1258,83 @@ export default function KarteikartenPage() {
           onCancel={() => { setShowForm(false); setEditCard(undefined) }}
         />
       )}
+
+      </>}
+    </div>
+  )
+}
+
+// ─── Share Deck Dialog ────────────────────────────────────────────────────────
+
+function ShareDeckDialog({
+  cardCount,
+  onShare,
+  onCancel,
+}: {
+  cardCount: number
+  onShare: (name: string, description: string) => Promise<void>
+  onCancel: () => void
+}) {
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async () => {
+    if (!name.trim()) return
+    setLoading(true)
+    try {
+      await onShare(name.trim(), description.trim())
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="th-card p-6 max-w-md w-full shadow-2xl">
+        <div className="flex items-center gap-2 mb-4">
+          <Share2 size={18} style={{ color: '#003366' }} />
+          <h3 className="font-semibold th-text">Deck teilen</h3>
+        </div>
+        <p className="text-sm th-text-2 mb-4">
+          {cardCount} Karten werden als Community-Deck veröffentlicht. Andere Benutzer können es übernehmen und unabhängig lernen.
+        </p>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium th-text-2 mb-1">Deck-Name *</label>
+            <input
+              className="th-input w-full"
+              placeholder="z. B. Rechtsgrundlagen Sem. 1"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium th-text-2 mb-1">Beschreibung (optional)</label>
+            <textarea
+              className="th-input w-full resize-none"
+              rows={2}
+              placeholder="Was beinhaltet dieses Deck?"
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 mt-5">
+          <button onClick={onCancel} className="th-btn px-4 py-2 text-sm" style={{ color: 'var(--th-text-2)' }}>
+            Abbrechen
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!name.trim() || loading}
+            className="th-btn th-btn-primary flex items-center gap-2 px-4 py-2 text-sm disabled:opacity-50"
+          >
+            {loading ? <RefreshCw size={14} className="animate-spin" /> : <Share2 size={14} />}
+            Teilen
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

@@ -1,6 +1,7 @@
 /**
  * Minimal CalDAV client — no heavy dependencies.
  * Uses REPORT (calendar-query) over Basic Auth, then parses VEVENT from iCalendar.
+ * Write operations use PUT (create/update) and DELETE.
  */
 import type { CaldavEvent } from '../types'
 
@@ -118,6 +119,132 @@ export async function fetchCalendarEvents(settings: {
   const icals  = extractCalendarData(xml)
   const events = icals.flatMap(parseVEvents)
   return events
+}
+
+// ─── iCal write helpers ──────────────────────────────────────────────────────
+
+/** Escape text values per RFC 5545 §3.3.11 */
+function icalEscape(s: string): string {
+  return s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n')
+}
+
+/** Format a local YYYY-MM-DD + optional HH:MM as iCal date/datetime */
+function icalDt(date: string, time?: string): string {
+  const d = date.replace(/-/g, '')
+  if (!time) return `${d}`
+  const t = time.replace(':', '') + '00'
+  return `${d}T${t}`
+}
+
+/** Determine DTSTART property string (VALUE=DATE or datetime) */
+function dtProp(name: string, date: string, time?: string): string {
+  if (!time) return `${name};VALUE=DATE:${icalDt(date)}`
+  return `${name}:${icalDt(date, time)}`
+}
+
+export interface PushEventArgs {
+  uid:         string
+  title:       string
+  date:        string       // YYYY-MM-DD
+  time?:       string       // HH:MM
+  endTime?:    string       // HH:MM (same day)
+  description?: string
+  eventType?:  string       // stored in CATEGORIES
+}
+
+/** Build a minimal VCALENDAR string for a single VEVENT */
+export function buildIcal(event: PushEventArgs): string {
+  const now = new Date().toISOString().replace(/[-:.]/g, '').slice(0, 15) + 'Z'
+  const lines: string[] = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//FernUni Study Organizer//DE',
+    'BEGIN:VEVENT',
+    `UID:${event.uid}`,
+    `DTSTAMP:${now}`,
+    dtProp('DTSTART', event.date, event.time),
+  ]
+
+  // DTEND: same day, endTime if provided; otherwise +1h for timed, +1 day for all-day
+  if (event.time) {
+    const endT = event.endTime ?? (() => {
+      const [h, m] = event.time!.split(':').map(Number)
+      const end = new Date(0); end.setHours(h + 1, m, 0)
+      return `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`
+    })()
+    lines.push(dtProp('DTEND', event.date, endT))
+  } else {
+    // All-day: DTEND = next day
+    const next = new Date(event.date + 'T00:00:00')
+    next.setDate(next.getDate() + 1)
+    const nextStr = next.toISOString().slice(0, 10)
+    lines.push(`DTEND;VALUE=DATE:${nextStr.replace(/-/g, '')}`)
+  }
+
+  lines.push(`SUMMARY:${icalEscape(event.title)}`)
+  if (event.description) lines.push(`DESCRIPTION:${icalEscape(event.description)}`)
+  if (event.eventType)   lines.push(`CATEGORIES:${icalEscape(event.eventType)}`)
+  lines.push('END:VEVENT', 'END:VCALENDAR')
+
+  return lines.join('\r\n') + '\r\n'
+}
+
+/** PUT a VEVENT to a CalDAV calendar. Creates or updates the event. */
+export async function putCalendarEvent(
+  calendarUrl: string,
+  auth: string,
+  event: PushEventArgs,
+): Promise<void> {
+  const ical    = buildIcal(event)
+  const url     = calendarUrl.replace(/\/?$/, '/') + encodeURIComponent(event.uid) + '.ics'
+
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      Authorization: auth,
+      'Content-Type': 'text/calendar; charset=utf-8',
+      'If-None-Match': '*',    // create-or-replace; some servers need this omitted for updates
+    },
+    body: ical,
+    signal: AbortSignal.timeout(15_000),
+  })
+
+  // 201 Created, 204 No Content, or 200 OK are all success
+  // Some servers return 412 when If-None-Match fails on update — retry without header
+  if (res.status === 412) {
+    const res2 = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        Authorization: auth,
+        'Content-Type': 'text/calendar; charset=utf-8',
+      },
+      body: ical,
+      signal: AbortSignal.timeout(15_000),
+    })
+    if (!res2.ok) throw new Error(`CalDAV PUT fehlgeschlagen: ${res2.status} ${res2.statusText}`)
+    return
+  }
+
+  if (!res.ok) throw new Error(`CalDAV PUT fehlgeschlagen: ${res.status} ${res.statusText}`)
+}
+
+/** DELETE a VEVENT from a CalDAV calendar. Ignores 404 (already gone). */
+export async function deleteCalendarEvent(
+  calendarUrl: string,
+  auth: string,
+  uid: string,
+): Promise<void> {
+  const url = calendarUrl.replace(/\/?$/, '/') + encodeURIComponent(uid) + '.ics'
+
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: { Authorization: auth },
+    signal: AbortSignal.timeout(15_000),
+  })
+
+  if (!res.ok && res.status !== 404) {
+    throw new Error(`CalDAV DELETE fehlgeschlagen: ${res.status} ${res.statusText}`)
+  }
 }
 
 /** PROPFIND to discover calendar-home-set URL */

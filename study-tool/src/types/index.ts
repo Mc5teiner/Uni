@@ -130,6 +130,29 @@ export interface FlashcardDeck {
   createdAt: string
 }
 
+// ─── Shared flashcard decks ───────────────────────────────────────────────────
+
+export interface SharedDeckCard {
+  id: string
+  front: string
+  back: string
+  frontImage?: string
+  backImage?: string
+  tags: string[]
+}
+
+export interface SharedDeck {
+  id: string
+  ownerId: string
+  ownerName: string
+  name: string
+  description?: string
+  moduleName?: string
+  cardCount: number
+  createdAt: number
+  cards?: SharedDeckCard[]
+}
+
 // ============================================================
 // Calendar & Study Planning
 // ============================================================
@@ -148,6 +171,7 @@ export interface CalendarEvent {
   isRecurring?: boolean
   recurringDays?: number[] // 0=Sun, 1=Mon ... 6=Sat
   completed?: boolean
+  caldavUid?: string   // set when event is synced with a CalDAV server
 }
 
 // ============================================================

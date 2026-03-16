@@ -105,13 +105,37 @@ CREATE TABLE IF NOT EXISTS shared_documents (
   updated_at   INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
-CREATE INDEX IF NOT EXISTS idx_user_data_user   ON user_data(user_id);
-CREATE INDEX IF NOT EXISTS idx_refresh_user     ON refresh_tokens(user_id);
-CREATE INDEX IF NOT EXISTS idx_audit_user       ON audit_log(user_id);
-CREATE INDEX IF NOT EXISTS idx_audit_created    ON audit_log(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_refresh_hash     ON refresh_tokens(token_hash);
-CREATE INDEX IF NOT EXISTS idx_reset_hash       ON password_resets(token_hash);
-CREATE INDEX IF NOT EXISTS idx_shared_docs_hash ON shared_documents(file_hash);
+-- Shared flashcard decks — created by one user, cloneable by all
+CREATE TABLE IF NOT EXISTS shared_decks (
+  id           TEXT PRIMARY KEY,
+  owner_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name         TEXT NOT NULL,
+  description  TEXT,
+  module_name  TEXT,
+  card_count   INTEGER NOT NULL DEFAULT 0,
+  created_at   INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE TABLE IF NOT EXISTS shared_deck_cards (
+  id           TEXT PRIMARY KEY,
+  deck_id      TEXT NOT NULL REFERENCES shared_decks(id) ON DELETE CASCADE,
+  front        TEXT NOT NULL,
+  back         TEXT NOT NULL,
+  front_image  TEXT,
+  back_image   TEXT,
+  tags         TEXT NOT NULL DEFAULT '[]',
+  position     INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_data_user    ON user_data(user_id);
+CREATE INDEX IF NOT EXISTS idx_refresh_user      ON refresh_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_user        ON audit_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_created     ON audit_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_refresh_hash      ON refresh_tokens(token_hash);
+CREATE INDEX IF NOT EXISTS idx_reset_hash        ON password_resets(token_hash);
+CREATE INDEX IF NOT EXISTS idx_shared_docs_hash  ON shared_documents(file_hash);
+CREATE INDEX IF NOT EXISTS idx_shared_deck_owner ON shared_decks(owner_id);
+CREATE INDEX IF NOT EXISTS idx_shared_deck_cards ON shared_deck_cards(deck_id);
 `
 
 db.exec(SCHEMA)
@@ -309,4 +333,89 @@ export function getSharedDocsBytes(): number {
     `SELECT COALESCE(SUM(file_size), 0) as total FROM shared_documents`
   ).get() as { total: number }
   return row.total
+}
+
+// ─── Shared flashcard decks ───────────────────────────────────────────────────
+
+export interface SharedDeckMeta {
+  id: string
+  owner_id: string
+  owner_name: string
+  name: string
+  description: string | null
+  module_name: string | null
+  card_count: number
+  created_at: number
+}
+
+export interface SharedDeckCard {
+  id: string
+  deck_id: string
+  front: string
+  back: string
+  front_image: string | null
+  back_image: string | null
+  tags: string
+  position: number
+}
+
+export function listSharedDecks(): SharedDeckMeta[] {
+  return db.prepare(`
+    SELECT d.id, d.owner_id, u.name as owner_name, d.name, d.description,
+           d.module_name, d.card_count, d.created_at
+    FROM shared_decks d
+    JOIN users u ON u.id = d.owner_id
+    ORDER BY d.created_at DESC
+  `).all() as SharedDeckMeta[]
+}
+
+export function getSharedDeck(id: string): SharedDeckMeta | undefined {
+  return db.prepare(`
+    SELECT d.id, d.owner_id, u.name as owner_name, d.name, d.description,
+           d.module_name, d.card_count, d.created_at
+    FROM shared_decks d
+    JOIN users u ON u.id = d.owner_id
+    WHERE d.id = ?
+  `).get(id) as SharedDeckMeta | undefined
+}
+
+export function getSharedDeckCards(deckId: string): SharedDeckCard[] {
+  return db.prepare(
+    `SELECT * FROM shared_deck_cards WHERE deck_id = ? ORDER BY position`
+  ).all(deckId) as SharedDeckCard[]
+}
+
+export function createSharedDeck(opts: {
+  id: string
+  ownerId: string
+  name: string
+  description?: string
+  moduleName?: string
+  cards: { id: string; front: string; back: string; frontImage?: string; backImage?: string; tags: string[] }[]
+}): void {
+  const insertDeck = db.prepare(`
+    INSERT INTO shared_decks (id, owner_id, name, description, module_name, card_count)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `)
+  const insertCard = db.prepare(`
+    INSERT INTO shared_deck_cards (id, deck_id, front, back, front_image, back_image, tags, position)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `)
+  db.transaction(() => {
+    insertDeck.run(
+      opts.id, opts.ownerId, opts.name,
+      opts.description ?? null, opts.moduleName ?? null, opts.cards.length
+    )
+    opts.cards.forEach((c, i) => {
+      insertCard.run(
+        c.id, opts.id, c.front, c.back,
+        c.frontImage ?? null, c.backImage ?? null,
+        JSON.stringify(c.tags), i
+      )
+    })
+  })()
+}
+
+export function deleteSharedDeck(id: string): void {
+  db.prepare('DELETE FROM shared_decks WHERE id = ?').run(id)
 }
