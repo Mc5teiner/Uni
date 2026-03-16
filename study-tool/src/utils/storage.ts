@@ -10,6 +10,7 @@ const defaultData: AppData = {
   events: [],
   sessions: [],
   goals: [],
+  grades: null,
   lastUpdated: new Date().toISOString(),
 }
 
