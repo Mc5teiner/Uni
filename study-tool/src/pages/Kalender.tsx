@@ -7,7 +7,8 @@ import {
   isToday
 } from 'date-fns'
 import { de } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Plus, X, Check, Clock, Upload, ExternalLink, Timer, Pause, Play, RotateCcw, BrainCircuit as BrainIcon, Coffee, Moon } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, X, Check, Clock, Upload, ExternalLink, Timer, Pause, Play, RotateCcw, BrainCircuit as BrainIcon, Coffee, Moon, RefreshCw, Cloud, CloudOff, AlertCircle } from 'lucide-react'
+import { caldav as caldavApi, type CaldavEvent } from '../api/client'
 
 const EVENT_TYPE_LABELS: Record<EventType, string> = {
   pruefung: 'Prüfung',
@@ -687,6 +688,124 @@ function MentoriatDetailOverlay({ event, onClose, onEdit, onDelete }: {
 
 // ─── Calendar Grid ───────────────────────────────────────────────────────────
 
+// ─── CalDAV sync dialog ───────────────────────────────────────────────────────
+
+interface SyncResult {
+  newEvents:    CaldavEvent[]    // in CalDAV, no matching local caldavUid
+  goneUids:     string[]         // local events whose caldavUid is no longer in CalDAV
+  updatedCount: number           // silently updated
+}
+
+function CalDAVSyncDialog({
+  result,
+  localEvents,
+  onImport,
+  onDeleteGone,
+  onClose,
+}: {
+  result: SyncResult
+  localEvents: CalendarEvent[]
+  onImport: (events: CaldavEvent[]) => void
+  onDeleteGone: (ids: string[]) => void
+  onClose: () => void
+}) {
+  const [selected, setSelected]     = useState<Set<string>>(new Set(result.newEvents.map(e => e.uid)))
+  const [delGone,  setDelGone]      = useState<Set<string>>(new Set())
+
+  const toggle = (uid: string) => setSelected(s => { const n = new Set(s); n.has(uid) ? n.delete(uid) : n.add(uid); return n })
+  const toggleGone = (id: string) => setDelGone(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+
+  const goneEvents = result.goneUids
+    .map(uid => localEvents.find(e => e.caldavUid === uid))
+    .filter(Boolean) as CalendarEvent[]
+
+  const hasAnything = result.newEvents.length > 0 || result.goneUids.length > 0 || result.updatedCount > 0
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="th-card w-full max-w-lg shadow-2xl flex flex-col max-h-[85vh]">
+        <div className="flex items-center gap-2 px-5 py-4 border-b shrink-0" style={{ borderColor: 'var(--th-border)' }}>
+          <Cloud size={18} style={{ color: 'var(--th-accent)' }} />
+          <h3 className="font-semibold th-text">CalDAV Sync abgeschlossen</h3>
+        </div>
+
+        <div className="overflow-y-auto flex-1 p-5 space-y-5">
+          {!hasAnything && (
+            <p className="text-sm th-text-2 text-center py-4">Alles aktuell — keine Änderungen.</p>
+          )}
+
+          {result.updatedCount > 0 && (
+            <div className="text-sm th-text-2 flex items-center gap-2">
+              <Check size={14} className="text-green-600 shrink-0" />
+              {result.updatedCount} lokale Termin{result.updatedCount !== 1 ? 'e' : ''} aktualisiert.
+            </div>
+          )}
+
+          {result.newEvents.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide th-text-3 mb-2">
+                Neu in CalDAV ({result.newEvents.length})
+              </p>
+              <div className="space-y-1.5">
+                {result.newEvents.map(e => (
+                  <label key={e.uid} className="flex items-center gap-3 rounded-lg p-2.5 cursor-pointer hover:bg-[var(--th-bg-secondary)]">
+                    <input type="checkbox" checked={selected.has(e.uid)} onChange={() => toggle(e.uid)} className="rounded" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium th-text truncate">{e.title}</div>
+                      <div className="text-xs th-text-3">{e.date}{e.time ? ` · ${e.time}` : ''}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {goneEvents.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide th-text-3 mb-2">
+                In CalDAV gelöscht ({goneEvents.length})
+              </p>
+              <div className="space-y-1.5">
+                {goneEvents.map(e => (
+                  <label key={e.id} className="flex items-center gap-3 rounded-lg p-2.5 cursor-pointer hover:bg-[var(--th-bg-secondary)]">
+                    <input type="checkbox" checked={delGone.has(e.id)} onChange={() => toggleGone(e.id)} className="rounded" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium th-text truncate line-through opacity-60">{e.title}</div>
+                      <div className="text-xs th-text-3">{e.date}</div>
+                    </div>
+                    <span className="text-xs text-red-500 shrink-0">auch lokal löschen?</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3 px-5 py-4 border-t shrink-0" style={{ borderColor: 'var(--th-border)' }}>
+          <button onClick={onClose} className="th-btn px-4 py-2 text-sm" style={{ color: 'var(--th-text-2)' }}>
+            Schließen
+          </button>
+          {(selected.size > 0 || delGone.size > 0) && (
+            <button
+              onClick={() => {
+                if (selected.size > 0) onImport(result.newEvents.filter(e => selected.has(e.uid)))
+                if (delGone.size > 0) onDeleteGone([...delGone])
+                onClose()
+              }}
+              className="th-btn th-btn-primary flex items-center gap-2 px-4 py-2 text-sm"
+            >
+              <Check size={14} />
+              Übernehmen ({selected.size + delGone.size})
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
+
 export default function KalenderPage() {
   const { data, createEvent, updateEvent, removeEvent, logSession } = useApp()
   const [currentMonth, setCurrentMonth] = useState(new Date())
@@ -697,6 +816,112 @@ export default function KalenderPage() {
   const [editEvent, setEditEvent] = useState<CalendarEvent | undefined>()
   const [viewMentoriat, setViewMentoriat] = useState<CalendarEvent | null>(null)
   const [filterModuleId, setFilterModuleId] = useState<string>('alle')
+
+  // CalDAV sync state
+  const [caldavConfigured, setCaldavConfigured] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null)
+  const [syncError, setSyncError] = useState<string | null>(null)
+
+  useEffect(() => {
+    caldavApi.getSettings().then(s => setCaldavConfigured(!!s?.configured)).catch(() => {})
+  }, [])
+
+  // ── CalDAV-aware event handlers ────────────────────────────────────────────
+
+  /** Push an event to CalDAV (fire-and-forget — failure is non-critical) */
+  async function pushToCaldav(event: CalendarEvent): Promise<string | undefined> {
+    try {
+      const { uid } = await caldavApi.pushEvent({
+        uid:         event.caldavUid,
+        title:       event.title,
+        date:        event.date,
+        time:        event.time,
+        endTime:     event.endTime,
+        description: event.description,
+        eventType:   EVENT_TYPE_LABELS[event.type],
+      })
+      return uid
+    } catch { return undefined }
+  }
+
+  const handleSaveEvent = useCallback(async (e: Omit<CalendarEvent, 'id'>) => {
+    if (editEvent) {
+      const updated: CalendarEvent = { ...e, id: editEvent.id, caldavUid: editEvent.caldavUid }
+      updateEvent(updated)
+      if (caldavConfigured) {
+        const uid = await pushToCaldav(updated)
+        // If it didn't have a caldavUid yet, store the one we just created
+        if (uid && !updated.caldavUid) updateEvent({ ...updated, caldavUid: uid })
+      }
+    } else {
+      if (caldavConfigured) {
+        // Push first to get a UID, then create with it
+        const tempEvent: CalendarEvent = { ...e, id: '__temp__' }
+        const uid = await pushToCaldav(tempEvent)
+        createEvent({ ...e, caldavUid: uid ?? undefined })
+      } else {
+        createEvent(e)
+      }
+    }
+    setShowEventForm(false)
+    setEditEvent(undefined)
+  }, [editEvent, caldavConfigured, createEvent, updateEvent])
+
+  const handleDeleteEvent = useCallback(async (event: CalendarEvent) => {
+    if (!confirm('Termin löschen?')) return
+    removeEvent(event.id)
+    if (caldavConfigured && event.caldavUid) {
+      caldavApi.deleteEvent(event.caldavUid).catch(() => {})
+    }
+  }, [caldavConfigured, removeEvent])
+
+  // ── CalDAV sync (pull) ─────────────────────────────────────────────────────
+
+  const handleSync = async () => {
+    setSyncing(true)
+    setSyncError(null)
+    try {
+      const remoteEvents = await caldavApi.fetchEvents()
+      const remoteUids   = new Set(remoteEvents.map(e => e.uid))
+
+      // Events in CalDAV but not locally (by caldavUid)
+      const localUids = new Set(data.events.filter(e => e.caldavUid).map(e => e.caldavUid as string))
+      const newEvents = remoteEvents.filter(e => !localUids.has(e.uid))
+
+      // Local events that are no longer in CalDAV (deleted remotely)
+      const goneUids = data.events
+        .filter(e => e.caldavUid && !remoteUids.has(e.caldavUid))
+        .map(e => e.caldavUid as string)
+
+      // Silently update events that exist both locally and remotely with changed data
+      let updatedCount = 0
+      for (const remote of remoteEvents) {
+        const local = data.events.find(e => e.caldavUid === remote.uid)
+        if (!local) continue
+        const titleChanged = local.title !== remote.title
+        const dateChanged  = local.date  !== remote.date
+        const timeChanged  = (local.time ?? '') !== (remote.time ?? '')
+        if (titleChanged || dateChanged || timeChanged) {
+          updateEvent({
+            ...local,
+            title:   remote.title,
+            date:    remote.date,
+            time:    remote.time,
+            endTime: remote.endTime ?? local.endTime,
+            description: remote.description ?? local.description,
+          })
+          updatedCount++
+        }
+      }
+
+      setSyncResult({ newEvents, goneUids, updatedCount })
+    } catch (err) {
+      setSyncError((err as Error).message)
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   const monthStart = startOfMonth(currentMonth)
   const monthEnd = endOfMonth(currentMonth)
@@ -722,12 +947,31 @@ export default function KalenderPage() {
 
   return (
     <div className="p-4 md:p-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold th-text">Kalender & Studienplan</h1>
-          <p className="text-sm th-text-2 mt-1">{data.events.length} Termine gesamt</p>
+          <p className="text-sm th-text-2 mt-1">
+            {data.events.length} Termine gesamt
+            {caldavConfigured && (
+              <span className="inline-flex items-center gap-1 ml-2 text-xs text-blue-500">
+                <Cloud size={11} /> CalDAV aktiv
+              </span>
+            )}
+          </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-2 flex-wrap">
+          {caldavConfigured && (
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors disabled:opacity-50"
+              style={{ borderColor: 'var(--th-border)', color: 'var(--th-text-2)', background: 'var(--th-card)' }}
+              title="Änderungen vom CalDAV-Server abrufen"
+            >
+              <RefreshCw size={15} className={syncing ? 'animate-spin' : ''} />
+              {syncing ? 'Sync…' : 'CalDAV Sync'}
+            </button>
+          )}
           <button onClick={() => setShowSessionForm(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white"
             style={{ background: 'rgba(22,163,74,0.85)' }}>
@@ -744,6 +988,17 @@ export default function KalenderPage() {
           </button>
         </div>
       </div>
+
+      {/* CalDAV sync error toast */}
+      {syncError && (
+        <div className="mb-4 flex items-center gap-2 px-4 py-3 rounded-xl text-sm"
+          style={{ background: 'var(--th-danger-soft)', color: 'var(--th-danger)', border: '1px solid color-mix(in srgb, var(--th-danger) 25%, transparent)' }}
+        >
+          <AlertCircle size={15} className="shrink-0" />
+          <span className="flex-1">CalDAV Fehler: {syncError}</span>
+          <button onClick={() => setSyncError(null)}><X size={14} /></button>
+        </div>
+      )}
 
       {/* Module filter */}
       <div className="flex gap-2 mb-6 flex-wrap">
@@ -845,11 +1100,16 @@ export default function KalenderPage() {
                           {e.time && <div className="text-xs mt-0.5">{e.time}{e.endTime ? ` – ${e.endTime}` : ''}</div>}
                           {e.description && <div className="text-xs mt-1 opacity-80">{e.description}</div>}
                           {isVirtual && <div className="text-[10px] mt-1 opacity-50 italic">aus Modul</div>}
+                          {e.caldavUid && !isVirtual && (
+                            <div className="text-[10px] mt-0.5 flex items-center gap-0.5 opacity-60">
+                              <Cloud size={9} /> CalDAV
+                            </div>
+                          )}
                         </div>
                         {!isVirtual && (
                           <div className="flex gap-1 shrink-0">
                             <button onClick={() => { setEditEvent(e); setShowEventForm(true) }} className="p-1 rounded hover:bg-black/10"><Plus size={12} /></button>
-                            <button onClick={() => { if (confirm('Termin löschen?')) removeEvent(e.id) }} className="p-1 rounded hover:bg-black/10"><X size={12} /></button>
+                            <button onClick={() => handleDeleteEvent(e)} className="p-1 rounded hover:bg-black/10"><X size={12} /></button>
                           </div>
                         )}
                       </div>
@@ -899,12 +1159,7 @@ export default function KalenderPage() {
         <EventForm
           initial={editEvent}
           defaultDate={format(selectedDate, 'yyyy-MM-dd')}
-          onSave={(e) => {
-            if (editEvent) updateEvent({ ...e, id: editEvent.id })
-            else createEvent(e)
-            setShowEventForm(false)
-            setEditEvent(undefined)
-          }}
+          onSave={handleSaveEvent}
           onCancel={() => { setShowEventForm(false); setEditEvent(undefined) }}
         />
       )}
@@ -928,7 +1183,31 @@ export default function KalenderPage() {
           event={viewMentoriat}
           onClose={() => setViewMentoriat(null)}
           onEdit={() => { setEditEvent(viewMentoriat); setShowEventForm(true); setViewMentoriat(null) }}
-          onDelete={() => removeEvent(viewMentoriat.id)}
+          onDelete={() => { handleDeleteEvent(viewMentoriat); setViewMentoriat(null) }}
+        />
+      )}
+
+      {/* CalDAV sync result dialog */}
+      {syncResult && (
+        <CalDAVSyncDialog
+          result={syncResult}
+          localEvents={data.events}
+          onImport={(events) => {
+            events.forEach(e => createEvent({
+              title:       e.title,
+              date:        e.date,
+              time:        e.time,
+              endTime:     e.endTime,
+              description: e.description,
+              type:        'erinnerung',
+              caldavUid:   e.uid,
+            }))
+          }}
+          onDeleteGone={(ids) => ids.forEach(id => {
+            const ev = data.events.find(e => e.id === id)
+            if (ev) removeEvent(ev.id)
+          })}
+          onClose={() => setSyncResult(null)}
         />
       )}
 

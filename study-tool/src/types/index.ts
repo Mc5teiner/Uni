@@ -171,6 +171,7 @@ export interface CalendarEvent {
   isRecurring?: boolean
   recurringDays?: number[] // 0=Sun, 1=Mon ... 6=Sat
   completed?: boolean
+  caldavUid?: string   // set when event is synced with a CalDAV server
 }
 
 // ============================================================

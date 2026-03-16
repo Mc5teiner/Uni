@@ -3,7 +3,8 @@ import { z } from 'zod'
 import { db, auditLog } from '../db'
 import { requireAuth } from '../middleware/auth'
 import { encrypt, decrypt } from '../crypto'
-import { fetchCalendarEvents, discoverCalendarUrl } from '../caldav/client'
+import { fetchCalendarEvents, discoverCalendarUrl, putCalendarEvent, deleteCalendarEvent } from '../caldav/client'
+import { v4 as uuidv4 } from 'uuid'
 import type { AuthenticatedRequest, CaldavSettingsRow } from '../types'
 
 const router = Router()
@@ -120,6 +121,68 @@ router.get('/events', async (req, res) => {
       calendar_url: row.calendar_url,
     })
     res.json(events)
+  } catch (err) {
+    res.status(502).json({ error: `CalDAV Fehler: ${(err as Error).message}` })
+  }
+})
+
+// ─── Push event to CalDAV ─────────────────────────────────────────────────────
+// Creates or updates a VEVENT on the CalDAV server.
+// Body: { uid?, title, date, time?, endTime?, description?, eventType? }
+// Returns: { uid } — the UID used (generated if not provided)
+
+router.post('/push', async (req, res) => {
+  const row = db.prepare('SELECT * FROM caldav_settings WHERE user_id = ?')
+    .get(uid(req)) as CaldavSettingsRow | undefined
+  if (!row) { res.status(404).json({ error: 'Kein CalDAV-Konto konfiguriert' }); return }
+
+  const schema = z.object({
+    uid:         z.string().max(256).optional(),
+    title:       z.string().min(1).max(500),
+    date:        z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    time:        z.string().regex(/^\d{2}:\d{2}$/).optional(),
+    endTime:     z.string().regex(/^\d{2}:\d{2}$/).optional(),
+    description: z.string().max(4000).optional(),
+    eventType:   z.string().max(100).optional(),
+  })
+  const parsed = schema.safeParse(req.body)
+  if (!parsed.success) { res.status(400).json({ error: 'Ungültige Eingabe' }); return }
+
+  let password: string
+  try { password = decrypt(row.password_encrypted, MASTER()) }
+  catch { res.status(500).json({ error: 'Passwort konnte nicht entschlüsselt werden' }); return }
+
+  const calUrl   = row.calendar_url ?? row.server_url
+  const eventUid = parsed.data.uid ?? `${uuidv4()}@fernuni-organizer`
+  const authHdr  = 'Basic ' + Buffer.from(`${row.username}:${password}`).toString('base64')
+
+  try {
+    await putCalendarEvent(calUrl, authHdr, { ...parsed.data, uid: eventUid })
+    auditLog(uid(req), 'caldav.event_pushed', { ip: ip(req), details: { eventUid } })
+    res.json({ uid: eventUid })
+  } catch (err) {
+    res.status(502).json({ error: `CalDAV Fehler: ${(err as Error).message}` })
+  }
+})
+
+// ─── Delete event from CalDAV ─────────────────────────────────────────────────
+
+router.delete('/push/:caldavUid', async (req, res) => {
+  const row = db.prepare('SELECT * FROM caldav_settings WHERE user_id = ?')
+    .get(uid(req)) as CaldavSettingsRow | undefined
+  if (!row) { res.status(404).json({ error: 'Kein CalDAV-Konto konfiguriert' }); return }
+
+  let password: string
+  try { password = decrypt(row.password_encrypted, MASTER()) }
+  catch { res.status(500).json({ error: 'Passwort konnte nicht entschlüsselt werden' }); return }
+
+  const calUrl  = row.calendar_url ?? row.server_url
+  const authHdr = 'Basic ' + Buffer.from(`${row.username}:${password}`).toString('base64')
+
+  try {
+    await deleteCalendarEvent(calUrl, authHdr, req.params.caldavUid as string)
+    auditLog(uid(req), 'caldav.event_deleted', { ip: ip(req), details: { caldavUid: req.params.caldavUid } })
+    res.json({ ok: true })
   } catch (err) {
     res.status(502).json({ error: `CalDAV Fehler: ${(err as Error).message}` })
   }

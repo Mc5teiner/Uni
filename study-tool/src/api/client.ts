@@ -271,6 +271,21 @@ export const caldav = {
   testConnection: (body: { serverUrl: string; username: string; password: string }) =>
     req<{ ok: boolean; discoveredUrl?: string }>('POST', '/api/caldav/test', body),
   fetchEvents:    () => req<CaldavEvent[]>('GET', '/api/caldav/events'),
+
+  /** Push (create or update) an event to the CalDAV server. Returns the UID used. */
+  pushEvent: (body: {
+    uid?: string
+    title: string
+    date: string
+    time?: string
+    endTime?: string
+    description?: string
+    eventType?: string
+  }) => req<{ uid: string }>('POST', '/api/caldav/push', body),
+
+  /** Delete an event from the CalDAV server by its CalDAV UID. */
+  deleteEvent: (caldavUid: string) =>
+    req<{ ok: boolean }>('DELETE', `/api/caldav/push/${encodeURIComponent(caldavUid)}`),
 }
 
 // ─── Shared Documents ────────────────────────────────────────────────────────
