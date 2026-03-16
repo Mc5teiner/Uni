@@ -61,9 +61,10 @@ export type DataNamespace =
   | 'events'
   | 'sessions'
   | 'goals'
+  | 'grades'
 
 export const VALID_NAMESPACES: DataNamespace[] = [
-  'modules', 'documents', 'flashcards', 'flashcard_decks', 'events', 'sessions', 'goals',
+  'modules', 'documents', 'flashcards', 'flashcard_decks', 'events', 'sessions', 'goals', 'grades',
 ]
 
 export interface AccessTokenPayload {

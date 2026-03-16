@@ -11,6 +11,7 @@
 
 import { createContext, useContext, useReducer, useEffect, useCallback, type ReactNode } from 'react'
 import type { AppData, StudyModule, StudyDocument, Flashcard, FlashcardDeck, CalendarEvent, StudySession, StudyGoal } from '../types'
+import type { GradeConfig } from '../utils/gradeCalculations'
 import {
   loadData, saveModule, deleteModule,
   saveDocument, deleteDocument,
@@ -41,6 +42,7 @@ type Action =
   | { type: 'SAVE_SESSION'; session: StudySession }
   | { type: 'SAVE_GOAL'; goal: StudyGoal }
   | { type: 'DELETE_GOAL'; goalId: string }
+  | { type: 'SAVE_GRADES'; grades: GradeConfig }
 
 function reducer(state: AppData, action: Action): AppData {
   switch (action.type) {
@@ -57,6 +59,7 @@ function reducer(state: AppData, action: Action): AppData {
     case 'SAVE_SESSION':    return saveSession(state, action.session)
     case 'SAVE_GOAL':       return saveGoal(state, action.goal)
     case 'DELETE_GOAL':     return deleteGoal(state, action.goalId)
+    case 'SAVE_GRADES':     return { ...state, grades: action.grades }
     default:                return state
   }
 }
@@ -71,6 +74,7 @@ const nsMap = {
   event:        'events',
   session:      'sessions',
   goal:         'goals',
+  grades:       'grades',
 } as const
 
 type NS = typeof nsMap[keyof typeof nsMap]
@@ -107,13 +111,14 @@ interface AppContextValue {
   createGoal: (g: Omit<StudyGoal, 'id' | 'createdAt' | 'currentMinutesThisWeek'>) => void
   updateGoal: (g: StudyGoal) => void
   removeGoal: (id: string) => void
+  updateGrades: (grades: GradeConfig) => void
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
 
 const DEFAULT_DATA: AppData = {
   modules: [], documents: [], flashcards: [], flashcardDecks: [],
-  events: [], sessions: [], goals: [], lastUpdated: new Date().toISOString(),
+  events: [], sessions: [], goals: [], grades: null, lastUpdated: new Date().toISOString(),
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -230,6 +235,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     removeGoal: useCallback((id) => {
       dispatch({ type: 'DELETE_GOAL', goalId: id })
       apiDelete('goals', id)
+    }, []),
+
+    updateGrades: useCallback((grades: GradeConfig) => {
+      dispatch({ type: 'SAVE_GRADES', grades })
+      apiUpsert('grades', { id: 'singleton', ...grades })
     }, []),
   }
 

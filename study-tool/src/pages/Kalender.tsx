@@ -7,7 +7,7 @@ import {
   isToday
 } from 'date-fns'
 import { de } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Plus, X, Check, Clock, Upload, ExternalLink, Timer, Pause, Play, RotateCcw, BrainCircuit as BrainIcon, Coffee, Moon, RefreshCw, Cloud, CloudOff, AlertCircle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, X, Check, Clock, Upload, ExternalLink, Timer, Pause, Play, RotateCcw, BrainCircuit as BrainIcon, Coffee, Moon, RefreshCw, Cloud, AlertCircle } from 'lucide-react'
 import { caldav as caldavApi, type CaldavEvent } from '../api/client'
 
 const EVENT_TYPE_LABELS: Record<EventType, string> = {

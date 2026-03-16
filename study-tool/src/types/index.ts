@@ -209,6 +209,7 @@ export interface AppData {
   events: CalendarEvent[]
   sessions: StudySession[]
   goals: StudyGoal[]
+  grades: import('../utils/gradeCalculations').GradeConfig | null
   lastUpdated: string
 }
 
