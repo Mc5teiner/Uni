@@ -9,41 +9,34 @@ import {
   PFLICHT_MODULES, type GradeConfig, type GradeEntry, type WahlSlot, type PO,
   defaultGradeConfig, parseGrade, fmtGrade1, fmtGrade2, roundToStep,
   calcPflichtStats, calcWahlStats, calcGesamtnote,
-  gradeLabel, gradeColor, gradeInputValid, GRADE_CONFIG_KEY,
+  gradeLabel, gradeColor, gradeInputValid,
 } from '../utils/gradeCalculations'
 
-// ─── localStorage hook ────────────────────────────────────────────────────────
+// ─── AppContext-backed grade config hook ──────────────────────────────────────
 
 function useGradeConfig(): [GradeConfig, (fn: (prev: GradeConfig) => GradeConfig) => void] {
-  const [config, setConfig] = useState<GradeConfig>(() => {
-    try {
-      const stored = localStorage.getItem(GRADE_CONFIG_KEY)
-      if (stored) {
-        const parsed = JSON.parse(stored) as Partial<GradeConfig>
-        const def = defaultGradeConfig()
-        // Merge carefully to handle missing fields after updates
-        return {
-          ...def,
-          ...parsed,
-          pflicht: { ...def.pflicht, ...(parsed.pflicht ?? {}) },
-          wahl: parsed.wahl
-            ? parsed.wahl.map((w, i) => ({ ...def.wahl[i], ...w })) as GradeConfig['wahl']
-            : def.wahl,
-          seminar: { ...def.seminar, ...(parsed.seminar ?? {}) },
-          thesis:  { ...def.thesis,  ...(parsed.thesis  ?? {}) },
-        }
-      }
-    } catch { /* ignore */ }
-    return defaultGradeConfig()
-  })
+  const { data, updateGrades } = useApp()
+
+  // Merge server data with defaults to handle missing fields after app updates
+  const config = useMemo<GradeConfig>(() => {
+    const stored = data.grades
+    if (!stored) return defaultGradeConfig()
+    const def = defaultGradeConfig()
+    return {
+      ...def,
+      ...stored,
+      pflicht: { ...def.pflicht, ...(stored.pflicht ?? {}) },
+      wahl: stored.wahl
+        ? stored.wahl.map((w, i) => ({ ...def.wahl[i], ...w })) as GradeConfig['wahl']
+        : def.wahl,
+      seminar: { ...def.seminar, ...(stored.seminar ?? {}) },
+      thesis:  { ...def.thesis,  ...(stored.thesis  ?? {}) },
+    }
+  }, [data.grades])
 
   const update = useCallback((fn: (prev: GradeConfig) => GradeConfig) => {
-    setConfig(prev => {
-      const next = fn(prev)
-      localStorage.setItem(GRADE_CONFIG_KEY, JSON.stringify(next))
-      return next
-    })
-  }, [])
+    updateGrades(fn(config))
+  }, [config, updateGrades])
 
   return [config, update]
 }

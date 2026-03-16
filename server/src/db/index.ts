@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS user_data (
   user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   namespace  TEXT NOT NULL CHECK(namespace IN (
                'modules','documents','flashcards','flashcard_decks',
-               'events','sessions','goals')),
+               'events','sessions','goals','grades')),
   item_id    TEXT NOT NULL,
   data       TEXT NOT NULL,
   created_at INTEGER NOT NULL DEFAULT (unixepoch()),
@@ -139,6 +139,32 @@ CREATE INDEX IF NOT EXISTS idx_shared_deck_cards ON shared_deck_cards(deck_id);
 `
 
 db.exec(SCHEMA)
+
+// Migration: add 'grades' to user_data namespace CHECK constraint for existing databases.
+// SQLite cannot ALTER a CHECK constraint, so we recreate the table if needed.
+try {
+  db.prepare(`INSERT INTO user_data (user_id, namespace, item_id, data) VALUES ('__mig__', 'grades', '__mig__', '{}')`)
+    .run()
+  db.prepare(`DELETE FROM user_data WHERE user_id = '__mig__'`).run()
+} catch {
+  db.exec(`
+    CREATE TABLE user_data_v2 (
+      user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      namespace  TEXT NOT NULL CHECK(namespace IN (
+                 'modules','documents','flashcards','flashcard_decks',
+                 'events','sessions','goals','grades')),
+      item_id    TEXT NOT NULL,
+      data       TEXT NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      PRIMARY KEY (user_id, namespace, item_id)
+    );
+    INSERT INTO user_data_v2 SELECT * FROM user_data;
+    DROP TABLE user_data;
+    ALTER TABLE user_data_v2 RENAME TO user_data;
+    CREATE INDEX IF NOT EXISTS idx_user_data_user ON user_data(user_id);
+  `)
+}
 
 // Insert default settings if not present
 const DEFAULT_SETTINGS: Record<string, string> = {

@@ -13,6 +13,10 @@ import type {
   CalendarEvent, StudySession, StudyGoal, SharedDocument, SharedDocAdmin,
   SharedDeck,
 } from '../types'
+import type { GradeConfig } from '../utils/gradeCalculations'
+
+/** Grades stored on server: the full GradeConfig with an added 'id' field for the generic data API */
+export type GradeConfigStored = GradeConfig & { id: string }
 
 export interface PublicUser {
   id: string
@@ -166,7 +170,7 @@ export const auth = {
 
 // ─── Data (replaces localStorage) ────────────────────────────────────────────
 
-type Namespace = 'modules' | 'documents' | 'flashcards' | 'flashcard_decks' | 'events' | 'sessions' | 'goals'
+type Namespace = 'modules' | 'documents' | 'flashcards' | 'flashcard_decks' | 'events' | 'sessions' | 'goals' | 'grades'
 
 export const data = {
   getAll: <T>(ns: Namespace) => req<T[]>('GET', `/api/data/${ns}`),
@@ -181,7 +185,7 @@ export const data = {
 
   /** Load all namespaces and build an AppData object */
   loadAll: async (): Promise<Partial<AppData>> => {
-    const [modules, documents, flashcards, flashcard_decks, events, sessions, goals] = await Promise.all([
+    const [modules, documents, flashcards, flashcard_decks, events, sessions, goals, gradesArr] = await Promise.all([
       data.getAll<StudyModule>('modules'),
       data.getAll<StudyDocument>('documents'),
       data.getAll<Flashcard>('flashcards'),
@@ -189,8 +193,11 @@ export const data = {
       data.getAll<CalendarEvent>('events'),
       data.getAll<StudySession>('sessions'),
       data.getAll<StudyGoal>('goals'),
+      data.getAll<GradeConfigStored>('grades'),
     ])
-    return { modules, documents, flashcards, flashcardDecks: flashcard_decks, events, sessions, goals }
+    // Grades are stored as a single item with id 'singleton'
+    const grades = gradesArr[0] ?? null
+    return { modules, documents, flashcards, flashcardDecks: flashcard_decks, events, sessions, goals, grades }
   },
 }
 
