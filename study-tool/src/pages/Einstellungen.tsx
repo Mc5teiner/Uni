@@ -473,6 +473,7 @@ function RegistrationSection() {
 
 export default function EinstellungenPage() {
   const { data }                                  = useApp()
+  const { user }                                  = useAuth()
   const importRef                                 = useRef<HTMLInputElement>(null)
   const [fullExportProgress, setFullExportProgress] = useState<{ done: number; total: number } | null>(null)
   const [importPreview, setImportPreview]         = useState<BackupSummary | null>(null)

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { FERNUNI_MODULES, getNextSemesters } from '../data/fernuniModules'
 import { generateId } from '../utils/storage'
+import { parseGrade, gradeColor } from '../utils/gradeCalculations'
 import { getDueCards } from '../utils/spaceRepetition'
 import { format as fmtDate } from 'date-fns'
 
@@ -421,11 +422,19 @@ function ModuleDetail({
                     )
                   })()}
                 <ul className="space-y-3" role="list">
-                  {assignments.map(ea => (
+                  {assignments.map(ea => {
+                    const parsedGrade = ea.grade ? parseGrade(ea.grade) : null
+                    const gColor      = parsedGrade !== null ? gradeColor(parsedGrade) : null
+                    const bgStyle = ea.passed === true
+                      ? { border: '1px solid rgba(5,150,105,0.3)',  background: 'rgba(5,150,105,0.06)' }
+                      : ea.done
+                      ? { border: '1px solid var(--th-accent-30,rgba(99,102,241,0.3))', background: 'var(--th-accent-soft)' }
+                      : { border: '1px solid var(--th-border)',       background: 'var(--th-card-secondary)' }
+                    return (
                     <li
                       key={ea.id}
                       className="rounded-xl p-4"
-                      style={{ border: '1px solid var(--th-border)', background: 'var(--th-card-secondary)' }}
+                      style={bgStyle}
                     >
                       <div className="flex items-start gap-2 mb-3">
                         <input
@@ -435,6 +444,20 @@ function ModuleDetail({
                           onChange={e => updateAssignment(ea.id, { title: e.target.value })}
                           aria-label="Titel der Einsendearbeit"
                         />
+                        {/* Grade badge — shown when a valid grade is present */}
+                        {gColor && (
+                          <span
+                            className="shrink-0 rounded-lg px-2.5 py-1 text-xs font-bold tabular-nums"
+                            style={{
+                              background: `${gColor}18`,
+                              color: gColor,
+                              border: `1px solid ${gColor}44`,
+                            }}
+                            aria-label={`Note ${ea.grade}`}
+                          >
+                            {ea.grade}
+                          </span>
+                        )}
                         <DoneToggle   value={ea.done}   onChange={v => updateAssignment(ea.id, { done: v })} />
                         <PassedToggle value={ea.passed} onChange={v => updateAssignment(ea.id, { passed: v })} />
                         <button
@@ -471,7 +494,8 @@ function ModuleDetail({
                         </div>
                       </div>
                     </li>
-                  ))}
+                    )
+                  })}
                 </ul>
                 </>
               )}
