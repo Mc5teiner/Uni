@@ -69,15 +69,15 @@
   --th-bg-secondary:     #e9ecef;
   --th-sidebar:          linear-gradient(195deg, #42424a 0%, #191919 100%);
   --th-sidebar-flat:     #1a1a2e;
-  --th-sidebar-border:   transparent;
+  --th-sidebar-border:   rgba(255,255,255,0.08);
   --th-sidebar-shadow:   none;
   --th-card:             #ffffff;
   --th-card-secondary:   #f8f9fa;
   --th-card-border:      transparent;
   --th-card-hover:       #f0f2f5;
-  --th-card-shadow:      0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.04);
-  --th-card-shadow-hover: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.06);
-  --th-radius:           var(--radius-md);
+  --th-card-shadow:      0 2px 4px -1px rgba(0,0,0,0.06), 0 4px 16px -2px rgba(0,0,0,0.10);
+  --th-card-shadow-hover: 0 4px 8px -2px rgba(0,0,0,0.10), 0 12px 28px -4px rgba(0,0,0,0.14);
+  --th-radius:           var(--radius-lg);
   --th-radius-lg:        var(--radius-lg);
 
   --th-text:             #344767;
@@ -131,15 +131,15 @@
   --th-bg-secondary:     #1f283e;
   --th-sidebar:          linear-gradient(195deg, #42424a 0%, #191919 100%);
   --th-sidebar-flat:     #111c44;
-  --th-sidebar-border:   transparent;
+  --th-sidebar-border:   rgba(255,255,255,0.08);
   --th-sidebar-shadow:   none;
   --th-card:             #202940;
   --th-card-secondary:   #1f283e;
   --th-card-border:      rgba(255,255,255,0.06);
   --th-card-hover:       rgba(255,255,255,0.06);
-  --th-card-shadow:      0 4px 6px -1px rgba(0,0,0,0.20), 0 2px 4px -2px rgba(0,0,0,0.15);
-  --th-card-shadow-hover: 0 10px 15px -3px rgba(0,0,0,0.25), 0 4px 6px -4px rgba(0,0,0,0.20);
-  --th-radius:           var(--radius-md);
+  --th-card-shadow:      0 2px 4px -1px rgba(0,0,0,0.25), 0 4px 16px -2px rgba(0,0,0,0.30);
+  --th-card-shadow-hover: 0 4px 8px -2px rgba(0,0,0,0.30), 0 12px 28px -4px rgba(0,0,0,0.35);
+  --th-radius:           var(--radius-lg);
   --th-radius-lg:        var(--radius-lg);
 
   --th-text:             #ffffffcc;
@@ -301,7 +301,7 @@ body {
   box-shadow: none;
   overflow: hidden;
   transition: width 250ms cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 50;
+  z-index: var(--z-sidebar);
 }
 
 /* ─── Typography ─────────────────────────────────────────────── */
@@ -319,10 +319,11 @@ body {
 }
 
 .th-section-title {
-  font-size: var(--text-base);
+  font-size: var(--text-lg);
   font-weight: 700;
   color: var(--th-text);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
+  line-height: var(--leading-tight);
 }
 
 /* ─── Buttons ────────────────────────────────────────────────── */
@@ -615,6 +616,10 @@ body {
 .md-gradient-dark    { background: var(--md-gradient-dark); }
 .md-gradient-success { background: var(--md-gradient-success); }
 
+/* ─── Hover background utility ────────────────────────────────── */
+.th-hover-bg { transition: background 150ms ease; }
+.th-hover-bg:hover { background: var(--th-card-hover); }
+
 /* ═══════════════════════════════════════════════════════════════
    MATERIAL DASHBOARD — STAT CARD
 ═══════════════════════════════════════════════════════════════ */
@@ -623,15 +628,9 @@ body {
   background: var(--th-card);
   border-radius: var(--th-radius);
   box-shadow: var(--th-card-shadow);
-  padding: 1.25rem;
+  padding: 1.5rem;
   position: relative;
   overflow: visible;
-}
-
-.md-stat-card .md-icon-box {
-  position: absolute;
-  top: -1.25rem;
-  left: 1.25rem;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -639,9 +638,9 @@ body {
 ═══════════════════════════════════════════════════════════════ */
 
 .md-chart-header {
-  border-radius: var(--radius-md);
-  margin: -1.5rem 1rem 0;
-  padding: 1rem;
+  border-radius: var(--radius-lg);
+  margin: -1.25rem 1.25rem 0;
+  padding: 1.25rem;
   position: relative;
   box-shadow: 0 4px 20px 0 rgba(0,0,0,0.14), 0 7px 10px -5px rgba(0,0,0,0.20);
 }
@@ -651,7 +650,7 @@ body {
 ═══════════════════════════════════════════════════════════════ */
 
 .th-progress-track {
-  height: 4px;
+  height: 6px;
   background: var(--th-bg-secondary);
   border-radius: var(--radius-full);
   overflow: hidden;
@@ -811,12 +810,12 @@ body {
 }
 
 .md-table thead th {
-  font-size: 0.65rem;
-  font-weight: 700;
+  font-size: 0.6875rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--th-text-2);
-  padding: 0.75rem 1rem;
+  letter-spacing: 0.05em;
+  color: var(--th-text-3);
+  padding: 0.875rem 1.25rem;
   border-bottom: 1px solid var(--th-border);
   text-align: left;
 }
@@ -824,7 +823,7 @@ body {
 .md-table tbody td {
   font-size: var(--text-sm);
   color: var(--th-text);
-  padding: 1rem 1rem;
+  padding: 1.125rem 1.25rem;
   border-bottom: 1px solid var(--th-border);
   vertical-align: middle;
 }
