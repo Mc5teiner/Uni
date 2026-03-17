@@ -378,7 +378,7 @@ export default function Dashboard() {
     <div className="p-4 md:p-6">
 
       {/* ── Stat cards ── */}
-      <section aria-label="Lernstatistiken" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-6">
+      <section aria-label="Lernstatistiken" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-10">
         <StatCard
           icon={BookOpen}
           label="Aktive Module"
@@ -416,7 +416,7 @@ export default function Dashboard() {
       {todayEvents.length > 0 && (
         <section
           aria-label="Heutige Termine"
-          className="th-card mb-3"
+          className="th-card mb-8"
           style={{ borderLeft: '2px solid var(--am)', padding: '15px 17px' }}
         >
           <div
@@ -441,10 +441,10 @@ export default function Dashboard() {
       )}
 
       {/* ── Main grid ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
 
         {/* Left column — 2/3 width */}
-        <div className="xl:col-span-2 space-y-3">
+        <div className="xl:col-span-2 space-y-6">
 
           {/* Study activity — chart card with dark gradient header */}
           <section aria-labelledby="chart-heading" className="th-card p-4">
@@ -596,7 +596,7 @@ export default function Dashboard() {
         </div>
 
         {/* Right column */}
-        <div className="space-y-3">
+        <div className="space-y-6">
 
           {/* Gesamtnote widget */}
           <GesamtnoteWidget />
