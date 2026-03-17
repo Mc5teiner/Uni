@@ -41,77 +41,128 @@ export default function SetupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--th-bg)] flex items-center justify-center p-4">
+    <div className="md-auth-wrapper">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="text-xs font-semibold th-text-3 uppercase tracking-widest mb-1">FernUniversität Hagen</div>
-          <h1 className="text-2xl font-bold th-text">Study Organizer</h1>
-          <p className="text-sm th-text-2 mt-2">Ersteinrichtung</p>
-        </div>
-
-        <div className="th-card shadow-sm p-6">
-          <div className="flex items-center gap-2 mb-2">
-            <ShieldCheck size={20} style={{ color: 'var(--th-accent)' }} />
-            <h2 className="text-lg font-semibold th-text">Administrator anlegen</h2>
+        <div className="th-card" style={{ overflow: 'visible', padding: '0 1.5rem 1.5rem' }}>
+          {/* Green gradient header */}
+          <div className="md-auth-header" style={{ margin: '0 1rem', transform: 'translateY(-1.5rem)' }}>
+            <ShieldCheck size={28} color="white" aria-hidden="true" />
+            <h1 className="text-xl font-bold text-white mt-2">Ersteinrichtung</h1>
+            <p className="text-sm text-white/70 mt-1">Administrator anlegen</p>
           </div>
-          <p className="text-sm th-text-2 mb-5">
-            Erstelle das erste Admin-Konto. Danach können weitere Benutzer über die Admin-Konsole angelegt werden.
-          </p>
 
-          {error && (
-            <div className="mb-4 px-3 py-2 rounded-lg text-sm"
-              style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: 'var(--th-danger)' }}>
-              {error}
-            </div>
-          )}
+          <div style={{ marginTop: '-0.5rem' }}>
+            <p className="text-sm mb-5" style={{ color: 'var(--th-text-2)' }}>
+              Erstelle das erste Admin-Konto. Danach können weitere Benutzer über die Admin-Konsole angelegt werden.
+            </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium th-text-2 mb-1">Vollständiger Name</label>
-              <input required className="th-input"
-                placeholder="Max Mustermann" value={form.name} onChange={set('name')} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+            {error && (
+              <div
+                className="mb-4 px-3 py-2 rounded-lg text-sm"
+                style={{
+                  background: 'var(--th-danger-soft)',
+                  border: '1px solid color-mix(in srgb, var(--th-danger) 25%, transparent)',
+                  color: 'var(--th-danger)',
+                }}
+              >
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium th-text-2 mb-1">Benutzername</label>
-                <input required pattern="[a-zA-Z0-9_.\-]+" minLength={3} maxLength={32}
+                <label htmlFor="setup-name" className="th-label">Vollständiger Name</label>
+                <input
+                  id="setup-name"
+                  required
                   className="th-input"
-                  placeholder="admin" value={form.username} onChange={set('username')} />
+                  placeholder="Max Mustermann"
+                  value={form.name}
+                  onChange={set('name')}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="setup-username" className="th-label">Benutzername</label>
+                  <input
+                    id="setup-username"
+                    required
+                    pattern="[a-zA-Z0-9_.\-]+"
+                    minLength={3}
+                    maxLength={32}
+                    className="th-input"
+                    placeholder="admin"
+                    value={form.username}
+                    onChange={set('username')}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="setup-email" className="th-label">E-Mail</label>
+                  <input
+                    id="setup-email"
+                    required
+                    type="email"
+                    className="th-input"
+                    placeholder="admin@example.com"
+                    value={form.email}
+                    onChange={set('email')}
+                  />
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium th-text-2 mb-1">E-Mail</label>
-                <input required type="email"
-                  className="th-input"
-                  placeholder="admin@example.com" value={form.email} onChange={set('email')} />
+                <label htmlFor="setup-password" className="th-label">
+                  Passwort <span style={{ color: 'var(--th-text-3)', fontWeight: 'normal' }}>(min. 12 Zeichen)</span>
+                </label>
+                <div className="relative">
+                  <input
+                    id="setup-password"
+                    required
+                    type={showPw ? 'text' : 'password'}
+                    minLength={12}
+                    maxLength={128}
+                    autoComplete="new-password"
+                    className="th-input"
+                    style={{ paddingRight: '2.75rem' }}
+                    placeholder="••••••••••••"
+                    value={form.password}
+                    onChange={set('password')}
+                  />
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => setShowPw(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 th-icon-btn"
+                    style={{ color: 'var(--th-text-3)', width: '1.75rem', height: '1.75rem' }}
+                    aria-label={showPw ? 'Passwort verbergen' : 'Passwort anzeigen'}
+                  >
+                    {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium th-text-2 mb-1">
-                Passwort <span className="th-text-3 font-normal">(min. 12 Zeichen)</span>
-              </label>
-              <div className="relative">
-                <input required type={showPw ? 'text' : 'password'} minLength={12} maxLength={128}
+              <div>
+                <label htmlFor="setup-confirm" className="th-label">Passwort bestätigen</label>
+                <input
+                  id="setup-confirm"
+                  required
+                  type="password"
+                  maxLength={128}
                   autoComplete="new-password"
-                  className="th-input pr-10"
-                  placeholder="••••••••••••" value={form.password} onChange={set('password')} />
-                <button type="button" tabIndex={-1} onClick={() => setShowPw(v => !v)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 th-text-3 hover:th-text-2">
-                  {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+                  className="th-input"
+                  placeholder="••••••••••••"
+                  value={form.confirmPassword}
+                  onChange={set('confirmPassword')}
+                />
               </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium th-text-2 mb-1">Passwort bestätigen</label>
-              <input required type="password" maxLength={128} autoComplete="new-password"
-                className="th-input"
-                placeholder="••••••••••••" value={form.confirmPassword} onChange={set('confirmPassword')} />
-            </div>
 
-            <button type="submit" disabled={loading}
-              className="w-full py-2.5 th-btn th-btn-primary font-medium text-sm disabled:opacity-60">
-              {loading ? 'Einrichten…' : 'Admin-Konto erstellen & einloggen'}
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={loading}
+                className="th-btn th-btn-primary w-full"
+              >
+                {loading ? 'Einrichten…' : 'Admin-Konto erstellen & einloggen'}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </div>

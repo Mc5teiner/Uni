@@ -69,7 +69,8 @@ function ImageUpload({ value, onChange, label }: { value?: string; onChange: (v:
           <button
             type="button"
             onClick={() => onChange(undefined)}
-            className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute -top-1.5 -right-1.5 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+            style={{ background: 'var(--th-danger)', color: 'white' }}
           >
             <X size={10} />
           </button>
@@ -78,7 +79,7 @@ function ImageUpload({ value, onChange, label }: { value?: string; onChange: (v:
         <button
           type="button"
           onClick={() => ref.current?.click()}
-          className="flex items-center gap-1.5 text-xs th-text-2 border border-dashed border-[var(--th-border)] rounded-lg px-3 py-2 hover:border-blue-400 hover:text-blue-500 transition-colors"
+          className="flex items-center gap-1.5 text-xs th-text-2 border border-dashed border-[var(--th-border)] rounded-lg px-3 py-2 transition-colors hover:border-[var(--th-accent)] hover:text-[var(--th-accent)]"
         >
           <ImageIcon size={14} /> Bild hochladen
         </button>
@@ -152,8 +153,8 @@ function ReviewSession({ cards, onDone, onReview }: {
             <X size={14} /> Abbrechen
           </button>
         </div>
-        <div className="h-2 bg-slate-200 rounded-full">
-          <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${(reviewed / cards.length) * 100}%` }} />
+        <div className="h-2 rounded-full" style={{ background: 'var(--th-border)' }}>
+          <div className="h-full rounded-full transition-all" style={{ width: `${(reviewed / cards.length) * 100}%`, background: 'var(--th-accent)' }} />
         </div>
       </div>
 
@@ -173,7 +174,7 @@ function ReviewSession({ cards, onDone, onReview }: {
           </>
         ) : (
           <>
-            <div className="text-xs text-blue-500 uppercase tracking-widest mb-4 font-medium">Antwort</div>
+            <div className="text-xs uppercase tracking-widest mb-4 font-medium" style={{ color: 'var(--th-accent)' }}>Antwort</div>
             <div className="text-xl th-text text-center leading-relaxed whitespace-pre-wrap">
               {card.back}
             </div>
@@ -282,15 +283,15 @@ function QuizSession({ cards, onDone }: { cards: Flashcard[]; onDone: () => void
       {/* Progress */}
       <div className="w-full mb-6">
         <div className="flex justify-between text-sm th-text-2 mb-2">
-          <span>{index + 1} / {cards.length} · <span className="text-green-600 font-medium">{score} richtig</span></span>
+          <span>{index + 1} / {cards.length} · <span style={{ color: 'var(--th-success)' }} className="font-medium">{score} richtig</span></span>
           <button onClick={onDone} className="flex items-center gap-1 th-text-3 hover:th-text-2">
             <X size={14} /> Abbrechen
           </button>
         </div>
-        <div className="h-2 bg-slate-200 rounded-full">
+        <div className="h-2 rounded-full" style={{ background: 'var(--th-border)' }}>
           <div
             className="h-full rounded-full transition-all"
-            style={{ width: `${(index / cards.length) * 100}%`, background: '#7c3aed' }}
+            style={{ width: `${(index / cards.length) * 100}%`, background: 'var(--th-accent)' }}
           />
         </div>
       </div>
@@ -786,7 +787,7 @@ export default function KarteikartenPage() {
     return (
       <div className="h-screen flex flex-col">
         <div className="px-6 py-4 bg-white border-b border-[var(--th-border)] flex items-center gap-3">
-          <BrainCircuit size={20} className="text-[#003366]" />
+          <BrainCircuit size={20} style={{ color: 'var(--th-accent)' }} />
           <span className="font-semibold th-text">Lernmodus</span>
           <span className="text-xs th-text-3">– {reviewCards.length} Karten</span>
         </div>
@@ -889,7 +890,7 @@ export default function KarteikartenPage() {
               Wähle das Modul, dem die Karten zugeordnet werden sollen:
             </p>
             {data.modules.length === 0 ? (
-              <p className="text-sm text-red-600 mb-4">Du hast noch keine Module. Lege zuerst ein Modul an.</p>
+              <p className="text-sm mb-4" style={{ color: 'var(--th-danger)' }}>Du hast noch keine Module. Lege zuerst ein Modul an.</p>
             ) : (
               <select
                 className="th-input w-full mb-4"
@@ -928,7 +929,7 @@ export default function KarteikartenPage() {
           {dueCards.length > 0 && (
             <button
               onClick={startDueReview}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+              className="th-btn th-btn-primary flex items-center gap-2 px-4 py-2 text-sm font-medium"
             >
               <BrainCircuit size={16} /> {dueCards.length} Fällig lernen
             </button>
@@ -936,7 +937,7 @@ export default function KarteikartenPage() {
           {allCards.length > 0 && (
             <button
               onClick={startAllReview}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+              className="th-btn th-btn-secondary flex items-center gap-2 px-4 py-2 text-sm font-medium"
             >
               <RefreshCw size={16} /> Alle üben
             </button>
@@ -1052,13 +1053,13 @@ export default function KarteikartenPage() {
       <div className="flex gap-1 mb-6 border-b" style={{ borderColor: 'var(--th-border)' }}>
         <button
           onClick={() => setActiveTab('meine')}
-          className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${activeTab === 'meine' ? 'border-blue-600 text-blue-600' : 'border-transparent th-text-2 hover:th-text'}`}
+          className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${activeTab === 'meine' ? 'border-[var(--th-accent)] text-[var(--th-accent)]' : 'border-transparent th-text-2 hover:th-text'}`}
         >
           <Layers size={14} /> Meine Karten
         </button>
         <button
           onClick={() => setActiveTab('community')}
-          className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${activeTab === 'community' ? 'border-blue-600 text-blue-600' : 'border-transparent th-text-2 hover:th-text'}`}
+          className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${activeTab === 'community' ? 'border-[var(--th-accent)] text-[var(--th-accent)]' : 'border-transparent th-text-2 hover:th-text'}`}
         >
           <Globe size={14} /> Community-Decks
         </button>
@@ -1074,8 +1075,8 @@ export default function KarteikartenPage() {
           )}
           {communityError && (
             <div className="text-center py-16">
-              <AlertCircle size={32} className="mx-auto mb-2 text-red-500" />
-              <p className="text-sm text-red-600">{communityError}</p>
+              <AlertCircle size={32} className="mx-auto mb-2" style={{ color: 'var(--th-danger)' }} />
+              <p className="text-sm" style={{ color: 'var(--th-danger)' }}>{communityError}</p>
               <button onClick={loadCommunity} className="mt-4 text-sm th-text-2 underline">Nochmal versuchen</button>
             </div>
           )}
@@ -1122,13 +1123,13 @@ export default function KarteikartenPage() {
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4 mb-6">
         {[
-          { label: 'Gesamt', value: allCards.length, color: 'th-text' },
-          { label: 'Heute fällig', value: dueCards.length, color: dueCards.length > 0 ? 'text-red-600' : 'text-green-600' },
-          { label: 'Heute gelernt', value: allCards.filter(c => c.lastReviewedAt?.startsWith(today)).length, color: 'text-blue-600' },
-          { label: 'Gut bekannt', value: allCards.filter(c => c.interval >= 14).length, color: 'text-green-600' },
-        ].map(({ label, value, color }) => (
+          { label: 'Gesamt', value: allCards.length, cssColor: 'var(--th-text)' },
+          { label: 'Heute fällig', value: dueCards.length, cssColor: dueCards.length > 0 ? 'var(--th-danger)' : 'var(--th-success)' },
+          { label: 'Heute gelernt', value: allCards.filter(c => c.lastReviewedAt?.startsWith(today)).length, cssColor: 'var(--th-accent)' },
+          { label: 'Gut bekannt', value: allCards.filter(c => c.interval >= 14).length, cssColor: 'var(--th-success)' },
+        ].map(({ label, value, cssColor }) => (
           <div key={label} className="th-card p-4 text-center">
-            <div className={`text-2xl font-bold ${color}`}>{value}</div>
+            <div className="text-2xl font-bold" style={{ color: cssColor || 'var(--th-text)' }}>{value}</div>
             <div className="text-xs th-text-2 mt-1">{label}</div>
           </div>
         ))}
@@ -1138,11 +1139,11 @@ export default function KarteikartenPage() {
       <div className="flex gap-2 mb-3 flex-wrap">
         <button
           onClick={() => setFilterModuleId('alle')}
-          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${filterModuleId === 'alle' ? 'th-btn th-btn-primary' : 'bg-[var(--th-bg-secondary,#f1f5f9)] th-text-2 hover:bg-slate-200'}`}
+          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${filterModuleId === 'alle' ? 'th-btn th-btn-primary' : 'bg-[var(--th-bg-secondary,#f1f5f9)] th-text-2 hover:bg-[var(--th-bg-secondary)]'}`}
         >Alle Module</button>
         {data.modules.map(m => (
           <button key={m.id} onClick={() => setFilterModuleId(m.id)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${filterModuleId === m.id ? 'text-white' : 'bg-[var(--th-bg-secondary,#f1f5f9)] th-text-2 hover:bg-slate-200'}`}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${filterModuleId === m.id ? 'text-white' : 'bg-[var(--th-bg-secondary,#f1f5f9)] th-text-2 hover:bg-[var(--th-bg-secondary)]'}`}
             style={filterModuleId === m.id ? { backgroundColor: m.color } : {}}
           >{m.moduleNumber} {m.name}</button>
         ))}
@@ -1159,7 +1160,7 @@ export default function KarteikartenPage() {
               className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                 activeTags.has(tag)
                   ? 'bg-indigo-600 text-white'
-                  : 'bg-[var(--th-bg-secondary,#f1f5f9)] th-text-2 hover:bg-slate-200'
+                  : 'bg-[var(--th-bg-secondary,#f1f5f9)] th-text-2 hover:bg-[var(--th-bg-secondary)]'
               }`}
             >
               {tag}
@@ -1195,7 +1196,8 @@ export default function KarteikartenPage() {
               <div
                 key={card.id}
                 onClick={() => { setReviewCards([card]); setReviewing(true) }}
-                className={`bg-white rounded-lg border p-4 flex items-center gap-4 cursor-pointer hover:shadow-sm transition-shadow ${isDue ? 'border-red-200 bg-red-50 hover:border-red-300' : 'border-[var(--th-border)] hover:border-[var(--th-border)]'}`}
+                className="th-card rounded-lg p-4 flex items-center gap-4 cursor-pointer hover:shadow-sm transition-shadow"
+                style={isDue ? { border: '1px solid var(--th-danger-soft)', background: 'var(--th-danger-soft)' } : { border: '1px solid var(--th-border)' }}
               >
                 {/* Card content */}
                 <div className="flex-1 min-w-0">
@@ -1218,10 +1220,10 @@ export default function KarteikartenPage() {
                   {card.tags.map(t => (
                     <span key={t} className="text-xs bg-[var(--th-bg-secondary,#f1f5f9)] th-text-2 px-2 py-0.5 rounded-full">{t}</span>
                   ))}
-                  <span className={`text-xs font-medium ${isDue ? 'text-red-600' : 'th-text-3'}`}>
+                  <span className="text-xs font-medium" style={{ color: isDue ? 'var(--th-danger)' : 'var(--th-text-3)' }}>
                     {isDue ? 'Fällig!' : `in ${daysUntil}d`}
                   </span>
-                  <span className="text-xs text-slate-300">|</span>
+                  <span className="text-xs" style={{ color: 'var(--th-border)' }}>|</span>
                   <span className="text-xs th-text-3">∅ {card.interval}d</span>
                   {/* Touch-friendly action buttons */}
                   <div className="flex gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
@@ -1293,7 +1295,7 @@ function ShareDeckDialog({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="th-card p-6 max-w-md w-full shadow-2xl">
         <div className="flex items-center gap-2 mb-4">
-          <Share2 size={18} style={{ color: '#003366' }} />
+          <Share2 size={18} style={{ color: 'var(--th-accent)' }} />
           <h3 className="font-semibold th-text">Deck teilen</h3>
         </div>
         <p className="text-sm th-text-2 mb-4">

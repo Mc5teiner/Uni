@@ -10,15 +10,15 @@ import {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function StorageBar({ used, limit, pct }: { used: number; limit: number; pct: number }) {
-  const color = pct > 90 ? 'bg-red-500' : pct > 70 ? 'bg-amber-500' : 'bg-teal-500'
+  const barColor = pct > 90 ? 'var(--th-danger)' : pct > 70 ? 'var(--th-warning)' : 'var(--th-success)'
   return (
     <div>
       <div className="flex justify-between text-xs th-text-2 mb-0.5">
         <span>{formatBytes(used)}</span>
         <span>{formatBytes(limit)}</span>
       </div>
-      <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
-        <div className={`h-full ${color} transition-all`} style={{ width: `${Math.min(pct, 100)}%` }} />
+      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--th-border)' }}>
+        <div className="h-full transition-all" style={{ width: `${Math.min(pct, 100)}%`, background: barColor }} />
       </div>
     </div>
   )
@@ -100,7 +100,7 @@ function UserModal({
     return (
       <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
         <div className="th-card shadow-2xl w-full max-w-sm p-6">
-          <div className="flex items-center gap-2 mb-3 text-green-600">
+          <div className="flex items-center gap-2 mb-3" style={{ color: 'var(--th-success)' }}>
             <Check size={20} /><h3 className="font-semibold">Benutzer angelegt</h3>
           </div>
           <p className="text-sm th-text-2 mb-3">Temporäres Passwort (bitte sofort ändern):</p>
@@ -121,7 +121,7 @@ function UserModal({
           <button onClick={onClose}><X size={18} /></button>
         </div>
         <div className="p-5 space-y-3 overflow-y-auto flex-1">
-          {error && <div className="px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
+          {error && <div className="px-3 py-2 rounded-lg text-sm" style={{ background: 'var(--th-danger-soft)', border: '1px solid rgba(220,38,38,0.2)', color: 'var(--th-danger)' }}>{error}</div>}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -147,7 +147,7 @@ function UserModal({
             </label>
             <div className="relative">
               <input type={showPw ? 'text' : 'password'} minLength={isEdit && form.password ? 12 : 0}
-                className="w-full border border-[var(--th-border)] rounded-lg px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                className="th-input pr-10"
                 placeholder={isEdit ? '(unverändert)' : '(auto-generieren)'} value={form.password} onChange={set('password')} />
               <button type="button" tabIndex={-1} onClick={() => setShowPw(v => !v)}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 th-text-3">
@@ -256,7 +256,7 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
           {([['smtp','SMTP'], ['email','E-Mail-Vorlagen'], ['system','System']] as const).map(([id, label]) => (
             <button key={id} onClick={() => setTab(id)}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
-                tab === id ? 'border-[#003366] text-[#003366]' : 'border-transparent th-text-2 hover:th-text-2'
+                tab === id ? 'border-[var(--th-accent)] text-[var(--th-accent)]' : 'border-transparent th-text-2 hover:th-text-2'
               }`}>
               {label}
             </button>
@@ -268,9 +268,9 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
         ) : (
           <div className="p-5 overflow-y-auto flex-1 space-y-4">
             {msg && (
-              <div className={`px-3 py-2 rounded-lg text-sm border ${msg.ok
-                ? 'bg-green-50 border-green-200 text-green-700'
-                : 'bg-red-50 border-red-200 text-red-700'}`}>
+              <div className="px-3 py-2 rounded-lg text-sm" style={msg.ok
+                ? { background: 'var(--th-success-soft)', border: '1px solid rgba(22,163,74,0.2)', color: 'var(--th-success)' }
+                : { background: 'var(--th-danger-soft)', border: '1px solid rgba(220,38,38,0.2)', color: 'var(--th-danger)' }}>
                 {msg.text}
               </div>
             )}
@@ -601,7 +601,7 @@ function SharedDocsTab() {
           <div className="text-xs th-text-2 mt-1">Gesamt Speicher</div>
         </div>
         <div className="th-card p-4 text-center">
-          <div className={`text-2xl font-bold ${unusedDocs.length > 0 ? 'text-amber-600' : 'th-text'}`}>
+          <div className="text-2xl font-bold" style={{ color: unusedDocs.length > 0 ? 'var(--th-warning)' : 'var(--th-text)' }}>
             {unusedDocs.length}
           </div>
           <div className="text-xs th-text-2 mt-1">Ungenutzte Dateien</div>
@@ -610,7 +610,7 @@ function SharedDocsTab() {
 
       {/* Unused hint */}
       {unusedDocs.length > 0 && (
-        <div className="flex items-start gap-3 px-4 py-3 rounded-xl text-sm bg-amber-50 border border-amber-200 text-amber-800">
+        <div className="flex items-start gap-3 px-4 py-3 rounded-xl text-sm" style={{ background: 'var(--th-warning-soft)', border: '1px solid rgba(245,158,11,0.3)', color: 'var(--th-warning)' }}>
           <AlertTriangle size={16} className="flex-shrink-0 mt-0.5" />
           <span>
             {unusedDocs.length} Datei(en) werden von keinem Benutzer mehr referenziert und können bedenkenlos gelöscht werden.
@@ -637,15 +637,15 @@ function SharedDocsTab() {
             Noch keine geteilten Studienbriefe.
           </div>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-[var(--th-border)]">
             {docs.map(doc => {
               const isUnused = doc.userCount === 0
               const isExpanded = expanded === doc.id
               return (
                 <div key={doc.id}>
-                  <div className={`px-4 py-3 ${isUnused ? 'bg-amber-50/60' : ''}`}>
+                  <div className="px-4 py-3" style={isUnused ? { background: 'var(--th-warning-soft)' } : {}}>
                     <div className="flex items-start gap-3">
-                      <div className={`p-2 rounded-lg flex-shrink-0 ${isUnused ? 'bg-amber-100 text-amber-600' : 'bg-blue-50 text-blue-500'}`}>
+                      <div className="p-2 rounded-lg flex-shrink-0" style={isUnused ? { background: 'var(--th-warning-soft)', color: 'var(--th-warning)' } : { background: 'var(--th-accent-soft)', color: 'var(--th-accent)' }}>
                         <FileText size={16} />
                       </div>
 
@@ -653,7 +653,7 @@ function SharedDocsTab() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium th-text text-sm truncate">{doc.fileName}</span>
                           {isUnused && (
-                            <span className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium">
+                            <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'var(--th-warning-soft)', color: 'var(--th-warning)' }}>
                               Ungenutzt
                             </span>
                           )}
@@ -668,7 +668,7 @@ function SharedDocsTab() {
                             className="text-xs th-text-3 hover:th-text-2 flex items-center gap-1"
                           >
                             <Users size={10} />
-                            <span className={doc.userCount > 0 ? 'text-blue-600 font-medium' : ''}>
+                            <span className={doc.userCount > 0 ? 'font-medium' : ''} style={doc.userCount > 0 ? { color: 'var(--th-accent)' } : {}}>
                               {doc.userCount} Benutzer
                             </span>
                             <ChevronRight size={10} className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
@@ -687,9 +687,9 @@ function SharedDocsTab() {
                                 : (
                                   <div className="flex flex-wrap gap-1.5">
                                     {users[doc.id].map(u => (
-                                      <span key={u.user_id} className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full">
+                                      <span key={u.user_id} className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--th-accent-soft)', color: 'var(--th-accent)' }}>
                                         {u.name || u.username}
-                                        <span className="text-blue-400 ml-1">({u.username})</span>
+                                        <span className="ml-1" style={{ color: 'var(--th-text-3)' }}>({u.username})</span>
                                       </span>
                                     ))}
                                   </div>
@@ -704,11 +704,8 @@ function SharedDocsTab() {
                       <button
                         onClick={() => handleDelete(doc, doc.userCount > 0)}
                         disabled={deleting === doc.id}
-                        className={`flex-shrink-0 p-2 rounded-lg transition-colors ${
-                          isUnused
-                            ? 'text-red-500 hover:bg-red-50'
-                            : 'text-slate-400 hover:text-red-500 hover:bg-red-50'
-                        }`}
+                        className="flex-shrink-0 p-2 rounded-lg transition-colors"
+                        style={{ color: isUnused ? 'var(--th-danger)' : 'var(--th-text-3)' }}
                         title={isUnused ? 'Löschen' : `Löschen (${doc.userCount} Benutzer betroffen)`}
                       >
                         {deleting === doc.id
@@ -819,8 +816,8 @@ export default function AdminConsolePage() {
       ) : tab === 'users' ? (
         /* ── Users Tab ── */
         <div className="th-card shadow-sm overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-[var(--th-bg)] border-b th-text-2">
+          <table className="md-table w-full text-sm">
+            <thead>
               <tr>
                 <th className="px-4 py-3 text-left font-medium">Benutzer</th>
                 <th className="px-4 py-3 text-left font-medium">Rolle</th>
@@ -829,9 +826,9 @@ export default function AdminConsolePage() {
                 <th className="px-4 py-3 text-right font-medium">Aktionen</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y" style={{ borderColor: 'var(--th-border)' }}>
               {users.map(u => (
-                <tr key={u.id} className={u.isBanned ? 'opacity-50 bg-red-50' : 'hover:bg-[var(--th-bg)]'}>
+                <tr key={u.id} className={u.isBanned ? 'opacity-50' : 'hover:bg-[var(--th-bg)]'} style={u.isBanned ? { background: 'var(--th-danger-soft)' } : {}}>
                   <td className="px-4 py-3">
                     <div className="font-medium th-text">{u.name || u.username}</div>
                     <div className="text-xs th-text-3">{u.username} · {u.email}</div>
@@ -842,9 +839,11 @@ export default function AdminConsolePage() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
-                      u.role === 'admin' ? 'bg-[#003366]/10 text-[#003366]' : 'bg-[var(--th-bg-secondary,#f1f5f9)] th-text-2'
-                    }`}>
+                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
+                      style={u.role === 'admin'
+                        ? { background: 'var(--th-accent-soft)', color: 'var(--th-accent)' }
+                        : { background: 'var(--th-bg-secondary)', color: 'var(--th-text-2)' }
+                      }>
                       {u.role === 'admin' ? <Shield size={10} /> : null}
                       {u.role === 'admin' ? 'Admin' : 'Benutzer'}
                     </span>
@@ -857,8 +856,8 @@ export default function AdminConsolePage() {
                   </td>
                   <td className="px-4 py-3">
                     {u.isBanned
-                      ? <span className="text-xs text-red-600 font-medium">Gesperrt</span>
-                      : <span className="text-xs text-green-600 font-medium">Aktiv</span>}
+                      ? <span className="text-xs font-medium" style={{ color: 'var(--th-danger)' }}>Gesperrt</span>
+                      : <span className="text-xs font-medium" style={{ color: 'var(--th-success)' }}>Aktiv</span>}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
@@ -872,11 +871,12 @@ export default function AdminConsolePage() {
                       </button>
                       <button onClick={() => toggleBan(u)} disabled={actionLoading === u.id}
                         title={u.isBanned ? 'Entsperren' : 'Sperren'}
-                        className={`p-1.5 rounded hover:bg-[var(--th-bg-secondary,#f1f5f9)] ${u.isBanned ? 'text-green-600' : 'text-amber-600'}`}>
+                        className="p-1.5 rounded hover:bg-[var(--th-bg-secondary)]"
+                        style={{ color: u.isBanned ? 'var(--th-success)' : 'var(--th-warning)' }}>
                         {u.isBanned ? <Shield size={14} /> : <ShieldOff size={14} />}
                       </button>
                       <button onClick={() => setConfirmDelete(u)} title="Löschen"
-                        className="p-1.5 rounded hover:bg-red-50 text-red-500"><Trash2 size={14} /></button>
+                        className="p-1.5 rounded hover:bg-[var(--th-bg-secondary)]" style={{ color: 'var(--th-danger)' }}><Trash2 size={14} /></button>
                     </div>
                   </td>
                 </tr>
@@ -919,7 +919,7 @@ export default function AdminConsolePage() {
             <div className="px-4 py-3 border-b bg-[var(--th-bg)] text-sm font-medium th-text-2">
               Speicher pro Benutzer
             </div>
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-[var(--th-border)]">
               {(storage?.users ?? [])
                 .sort((a, b) => b.used - a.used)
                 .map(s => {
@@ -962,7 +962,7 @@ export default function AdminConsolePage() {
       {confirmDelete && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="th-card shadow-2xl w-full max-w-sm p-6">
-            <div className="flex items-center gap-2 text-red-600 mb-3">
+            <div className="flex items-center gap-2 mb-3" style={{ color: 'var(--th-danger)' }}>
               <AlertTriangle size={20} /><h3 className="font-semibold">Benutzer löschen</h3>
             </div>
             <p className="text-sm th-text-2 mb-1">
@@ -975,7 +975,8 @@ export default function AdminConsolePage() {
                 Abbrechen
               </button>
               <button onClick={() => deleteUser(confirmDelete)} disabled={!!actionLoading}
-                className="flex-1 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-60">
+                className="flex-1 py-2 rounded-lg text-sm disabled:opacity-60"
+                style={{ background: 'var(--th-danger)', color: 'white' }}>
                 Löschen
               </button>
             </div>

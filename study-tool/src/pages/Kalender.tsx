@@ -20,12 +20,12 @@ const EVENT_TYPE_LABELS: Record<EventType, string> = {
 }
 
 const EVENT_TYPE_COLORS: Record<EventType, string> = {
-  pruefung: 'bg-red-500',
-  abgabe: 'bg-orange-500',
-  lernblock: 'bg-blue-500',
-  praesenzveranstaltung: 'bg-purple-500',
-  erinnerung: 'bg-slate-400',
-  mentoriat: 'bg-teal-500',
+  pruefung: '#ef4444',
+  abgabe: '#f97316',
+  lernblock: '#3b82f6',
+  praesenzveranstaltung: '#a855f7',
+  erinnerung: '#94a3b8',
+  mentoriat: '#14b8a6',
 }
 
 const EVENT_TYPE_STYLE: Record<EventType, { bg: string; border: string; color: string }> = {
@@ -185,7 +185,7 @@ function SessionLogger({ onLog, onCancel }: { onLog: (s: Omit<StudySession, 'id'
         <div className="flex justify-end gap-3 p-6 border-t">
           <button onClick={onCancel} className="px-4 py-2 text-sm th-text-2 hover:bg-[var(--th-bg-secondary,#f1f5f9)] rounded-lg">Abbrechen</button>
           <button onClick={() => { if (form.moduleId && form.topic) onLog(form) }} disabled={!form.moduleId || !form.topic}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
+            className="th-btn th-btn-primary flex items-center gap-2 px-4 py-2 text-sm disabled:opacity-50">
             <Check size={16} /> Erfassen
           </button>
         </div>
@@ -550,7 +550,7 @@ function MentoriatImport({ onImport, onCancel }: {
             <button
               onClick={parse}
               disabled={!raw.trim()}
-              className="px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 disabled:opacity-40 shrink-0"
+              className="th-btn th-btn-primary px-4 py-2 text-sm disabled:opacity-40 shrink-0"
             >
               Vorschau
             </button>
@@ -572,7 +572,7 @@ function MentoriatImport({ onImport, onCancel }: {
                     <th className="px-3 py-2 text-left">Titel</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y" style={{ borderColor: 'var(--th-border)' }}>
                   {rows.map((r, i) => (
                     <tr key={i} className={r.selected ? '' : 'opacity-40'}>
                       <td className="px-3 py-2">
@@ -592,7 +592,7 @@ function MentoriatImport({ onImport, onCancel }: {
           )}
 
           {rows.length === 0 && raw.trim() && (
-            <p className="text-sm text-amber-600">Keine Zeilen erkannt. Bitte Vorschau klicken oder Format prüfen.</p>
+            <p className="text-sm" style={{ color: 'var(--th-warning)' }}>Keine Zeilen erkannt. Bitte Vorschau klicken oder Format prüfen.</p>
           )}
         </div>
 
@@ -601,7 +601,7 @@ function MentoriatImport({ onImport, onCancel }: {
           <button
             onClick={handleImport}
             disabled={rows.filter(r => r.selected).length === 0}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-40"
+            className="th-btn th-btn-primary flex items-center gap-2 px-4 py-2 text-sm disabled:opacity-40"
           >
             <Upload size={16} /> {rows.filter(r => r.selected).length} Termine importieren
           </button>
@@ -629,8 +629,8 @@ function MentoriatDetailOverlay({ event, onClose, onEdit, onDelete }: {
       <div className="th-card shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-5 border-b">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-teal-500" />
-            <span className="text-xs font-semibold text-teal-700 uppercase tracking-wide">Mentoriat</span>
+            <div className="w-3 h-3 rounded-full" style={{ background: '#14b8a6' }} />
+            <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--th-accent)' }}>Mentoriat</span>
           </div>
           <button onClick={onClose} className="p-1 rounded hover:bg-[var(--th-bg-secondary,#f1f5f9)]"><X size={18} /></button>
         </div>
@@ -655,7 +655,8 @@ function MentoriatDetailOverlay({ event, onClose, onEdit, onDelete }: {
                 href={event.description}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 text-sm text-teal-600 hover:text-teal-800 hover:underline break-all"
+                className="flex items-center gap-2 text-sm hover:underline break-all"
+                style={{ color: 'var(--th-accent)' }}
               >
                 <ExternalLink size={14} className="shrink-0" />
                 {event.description}
@@ -669,13 +670,14 @@ function MentoriatDetailOverlay({ event, onClose, onEdit, onDelete }: {
           <div className="flex justify-end gap-2 px-5 pb-5">
             <button
               onClick={() => { if (confirm('Termin löschen?')) { onDelete(); onClose() } }}
-              className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg"
+              className="px-3 py-1.5 text-sm rounded-lg"
+              style={{ color: 'var(--th-danger)' }}
             >
               Löschen
             </button>
             <button
               onClick={onEdit}
-              className="px-3 py-1.5 text-sm bg-teal-600 text-white hover:bg-teal-700 rounded-lg"
+              className="th-btn th-btn-primary px-3 py-1.5 text-sm rounded-lg"
             >
               Bearbeiten
             </button>
@@ -736,7 +738,7 @@ function CalDAVSyncDialog({
 
           {result.updatedCount > 0 && (
             <div className="text-sm th-text-2 flex items-center gap-2">
-              <Check size={14} className="text-green-600 shrink-0" />
+              <Check size={14} className="shrink-0" style={{ color: 'var(--th-success)' }} />
               {result.updatedCount} lokale Termin{result.updatedCount !== 1 ? 'e' : ''} aktualisiert.
             </div>
           )}
@@ -773,7 +775,7 @@ function CalDAVSyncDialog({
                       <div className="text-sm font-medium th-text truncate line-through opacity-60">{e.title}</div>
                       <div className="text-xs th-text-3">{e.date}</div>
                     </div>
-                    <span className="text-xs text-red-500 shrink-0">auch lokal löschen?</span>
+                    <span className="text-xs shrink-0" style={{ color: 'var(--th-danger)' }}>auch lokal löschen?</span>
                   </label>
                 ))}
               </div>
@@ -953,7 +955,7 @@ export default function KalenderPage() {
           <p className="text-sm th-text-2 mt-1">
             {data.events.length} Termine gesamt
             {caldavConfigured && (
-              <span className="inline-flex items-center gap-1 ml-2 text-xs text-blue-500">
+              <span className="inline-flex items-center gap-1 ml-2 text-xs" style={{ color: 'var(--th-accent)' }}>
                 <Cloud size={11} /> CalDAV aktiv
               </span>
             )}
@@ -1003,12 +1005,12 @@ export default function KalenderPage() {
       {/* Module filter */}
       <div className="flex gap-2 mb-6 flex-wrap">
         <button onClick={() => setFilterModuleId('alle')}
-          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${filterModuleId === 'alle' ? 'th-btn th-btn-primary' : 'bg-[var(--th-bg-secondary,#f1f5f9)] th-text-2 hover:bg-slate-200'}`}>
+          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${filterModuleId === 'alle' ? 'th-btn th-btn-primary' : 'bg-[var(--th-bg-secondary,#f1f5f9)] th-text-2 hover:bg-[var(--th-bg-secondary)]'}`}>
           Alle Module
         </button>
         {data.modules.map(m => (
           <button key={m.id} onClick={() => setFilterModuleId(m.id)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${filterModuleId === m.id ? 'text-white' : 'bg-[var(--th-bg-secondary,#f1f5f9)] th-text-2 hover:bg-slate-200'}`}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${filterModuleId === m.id ? 'text-white' : 'bg-[var(--th-bg-secondary,#f1f5f9)] th-text-2 hover:bg-[var(--th-bg-secondary)]'}`}
             style={filterModuleId === m.id ? { backgroundColor: m.color } : {}}>
             {m.moduleNumber}
           </button>
@@ -1045,19 +1047,24 @@ export default function KalenderPage() {
                   key={i}
                   onClick={() => setSelectedDate(day)}
                   className={`min-h-[80px] p-2 border-b border-r border-[var(--th-border)] text-left transition-colors ${
-                    isSelected ? 'bg-blue-50' : 'hover:bg-[var(--th-bg)]'
+                    isSelected ? '' : 'hover:bg-[var(--th-bg)]'
                   } ${!isCurrentMonth ? 'opacity-30' : ''}`}
+                  style={isSelected ? { background: 'var(--th-accent-soft)' } : {}}
                 >
-                  <div className={`text-sm font-medium mb-1 w-7 h-7 flex items-center justify-center rounded-full ${
-                    isToday(day) ? 'th-btn th-btn-primary' : isSelected ? 'bg-blue-200 text-blue-800' : 'th-text-2'
-                  }`}>
+                  <div
+                    className={`text-sm font-medium mb-1 w-7 h-7 flex items-center justify-center rounded-full ${
+                      isToday(day) ? 'th-btn th-btn-primary' : 'th-text-2'
+                    }`}
+                    style={isSelected && !isToday(day) ? { background: 'var(--th-accent-soft)', color: 'var(--th-accent)' } : {}}
+                  >
                     {format(day, 'd')}
                   </div>
                   <div className="space-y-0.5">
                     {events.slice(0, 3).map(e => (
                       <div
                         key={e.id}
-                        className={`text-[10px] px-1 py-0.5 rounded truncate font-medium ${EVENT_TYPE_COLORS[e.type]} text-white ${e.type === 'mentoriat' ? 'cursor-pointer hover:opacity-80' : ''}`}
+                        className={`text-[10px] px-1 py-0.5 rounded truncate font-medium ${e.type === 'mentoriat' ? 'cursor-pointer hover:opacity-80' : ''}`}
+                        style={{ background: EVENT_TYPE_COLORS[e.type], color: 'white' }}
                         onClick={e.type === 'mentoriat' ? (ev) => { ev.stopPropagation(); setViewMentoriat(e) } : undefined}
                       >
                         {e.title}
@@ -1138,10 +1145,11 @@ export default function KalenderPage() {
                   return (
                     <div
                       key={e.id}
-                      className={`flex items-center gap-3 ${e.type === 'mentoriat' ? 'cursor-pointer hover:bg-teal-50 rounded-lg px-1 -mx-1' : ''}`}
+                      className={`flex items-center gap-3 ${e.type === 'mentoriat' ? 'cursor-pointer rounded-lg px-1 -mx-1' : ''}`}
+                      style={e.type === 'mentoriat' ? { ['--hover-bg' as string]: 'var(--th-bg-secondary)' } : {}}
                       onClick={e.type === 'mentoriat' ? () => setViewMentoriat(e) : undefined}
                     >
-                      <div className={`w-2 h-2 rounded-full shrink-0 ${EVENT_TYPE_COLORS[e.type]}`} />
+                      <div className="w-2 h-2 rounded-full shrink-0" style={{ background: EVENT_TYPE_COLORS[e.type] }} />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium th-text truncate">{e.title}</div>
                         <div className="text-xs th-text-3">{format(parseISO(e.date), 'dd.MM.yyyy', { locale: de })}{module ? ` · ${module.moduleNumber}` : ''}</div>

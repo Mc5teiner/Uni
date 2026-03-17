@@ -71,8 +71,8 @@ function PDFThumbnail({ doc }: { doc: StudyDocument }) {
 
   return (
     <div className="w-full bg-[var(--th-bg-secondary,#f1f5f9)] rounded-lg overflow-hidden flex items-center justify-center" style={{ aspectRatio: '3/4' }}>
-      {!loaded && !error && <FileText size={28} className="text-slate-300" />}
-      {error && <FileText size={28} className="text-slate-300 opacity-40" />}
+      {!loaded && !error && <FileText size={28} style={{ color: 'var(--th-text-3)' }} />}
+      {error && <FileText size={28} style={{ color: 'var(--th-text-3)', opacity: 0.4 }} />}
       <canvas
         ref={canvasRef}
         style={{ display: loaded ? 'block' : 'none', width: '100%', height: '100%', objectFit: 'contain' }}
@@ -231,8 +231,8 @@ function NoteColorPicker({
                 <div className="flex gap-1 mt-1">
                   <button
                     onClick={onSaveEdit}
-                    className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-blue-600 text-white rounded font-medium"
-                    style={{ minHeight: '2rem' }}
+                    className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded font-medium"
+                    style={{ background: 'var(--th-accent)', color: 'white', minHeight: '2rem' }}
                   >
                     <Check size={12} /> Speichern
                   </button>
@@ -265,17 +265,17 @@ function NoteColorPicker({
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => onEditNote(note.id, note.text, note.color)}
-                      className="p-1 text-blue-500 hover:text-blue-700 rounded transition-colors"
+                      className="p-1 rounded transition-colors"
+                      style={{ color: 'var(--th-accent)', minWidth: '1.5rem', minHeight: '1.5rem' }}
                       aria-label="Notiz bearbeiten"
-                      style={{ minWidth: '1.5rem', minHeight: '1.5rem' }}
                     >
                       <Pencil size={11} />
                     </button>
                     <button
                       onClick={() => onRemoveNote(note.id)}
-                      className="p-1 text-red-400 hover:text-red-600 rounded transition-colors"
+                      className="p-1 rounded transition-colors"
+                      style={{ color: 'var(--th-danger)', minWidth: '1.5rem', minHeight: '1.5rem' }}
                       aria-label="Notiz löschen"
-                      style={{ minWidth: '1.5rem', minHeight: '1.5rem' }}
                     >
                       <Trash2 size={11} />
                     </button>
@@ -317,14 +317,14 @@ function NoteColorPicker({
             onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) onAddNote() }}
           />
           <div className="flex gap-1 mt-1">
-            <button onClick={onAddNote} className="flex-1 py-1.5 bg-blue-600 text-white text-xs rounded font-medium">Speichern</button>
-            <button onClick={onCancelNote} className="px-3 py-1.5 text-xs rounded th-text-3 hover:bg-slate-100">Abbrechen</button>
+            <button onClick={onAddNote} className="flex-1 py-1.5 text-xs rounded font-medium" style={{ background: 'var(--th-accent)', color: 'white' }}>Speichern</button>
+            <button onClick={onCancelNote} className="px-3 py-1.5 text-xs rounded th-text-3" style={{ background: 'var(--th-bg-secondary)' }}>Abbrechen</button>
           </div>
         </div>
       ) : (
         <button
           onClick={onShowNoteInput}
-          className="mt-1 flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+          className="mt-1 flex items-center gap-1 text-xs" style={{ color: 'var(--th-accent)' }}
         >
           <Plus size={12} /> Notiz hinzufügen
         </button>
@@ -614,7 +614,8 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
                   </button>
                   <button
                     onClick={() => removeBookmark(bm.id)}
-                    className="opacity-0 group-hover:opacity-100 p-1 text-red-400 hover:text-red-600 transition-opacity"
+                    className="opacity-0 group-hover:opacity-100 p-1 transition-opacity"
+                    style={{ color: 'var(--th-danger)' }}
                     aria-label="Lesezeichen entfernen"
                   >
                     <X size={12} />
@@ -624,7 +625,7 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
             </div>
             <button
               onClick={() => setShowBookmarkInput(!showBookmarkInput)}
-              className="mt-3 flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+              className="mt-3 flex items-center gap-1 text-xs" style={{ color: 'var(--th-accent)' }}
             >
               <Plus size={12} /> Lesezeichen hinzufügen
             </button>
@@ -638,7 +639,7 @@ function PDFViewer({ doc, onUpdate }: { doc: StudyDocument; onUpdate: (d: StudyD
                   onChange={e => setBookmarkLabel(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && addBookmark()}
                 />
-                <button onClick={addBookmark} className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded font-medium">OK</button>
+                <button onClick={addBookmark} className="px-3 py-1.5 text-xs rounded font-medium" style={{ background: 'var(--th-accent)', color: 'white' }}>OK</button>
               </div>
             )}
           </div>
@@ -959,10 +960,10 @@ export default function DokumentePage() {
     return (
       <div className="flex flex-col h-screen">
         <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-[var(--th-border)] flex-shrink-0">
-          <button onClick={() => setActiveDoc(null)} className="flex items-center gap-1 text-sm th-text-2 hover:text-slate-900">
+          <button onClick={() => setActiveDoc(null)} className="flex items-center gap-1 text-sm th-text-2" style={{ color: 'var(--th-text-2)' }}>
             <ArrowLeft size={16} /> Zurück
           </button>
-          <div className="w-px h-5 bg-slate-200" />
+          <div className="w-px h-5" style={{ background: 'var(--th-border)' }} />
           <span className="text-sm font-medium th-text">{current.name}</span>
           {module && (
             <span className="text-xs px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: module.color }}>
@@ -986,7 +987,7 @@ export default function DokumentePage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold th-text">Studienbriefe</h1>
@@ -1004,11 +1005,11 @@ export default function DokumentePage() {
 
       {/* Upload status */}
       {uploadMsg && (
-        <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl mb-4 text-sm ${
-          uploadMsg.startsWith('Fehler')
-            ? 'bg-red-50 text-red-700 border border-red-200'
-            : 'bg-green-50 text-green-700 border border-green-200'
-        }`}>
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl mb-4 text-sm"
+          style={uploadMsg.startsWith('Fehler')
+            ? { background: 'var(--th-danger-soft)', color: 'var(--th-danger)', border: '1px solid rgba(220,38,38,0.2)' }
+            : { background: 'var(--th-success-soft)', color: 'var(--th-success)', border: '1px solid rgba(22,163,74,0.2)' }
+          }>
           <Share2 size={14} className="flex-shrink-0" />
           {uploadMsg}
         </div>
@@ -1018,13 +1019,13 @@ export default function DokumentePage() {
       <div className="flex gap-2 mb-6 flex-wrap">
         <button
           onClick={() => setFilterModuleId('alle')}
-          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${filterModuleId === 'alle' ? 'th-btn th-btn-primary' : 'bg-[var(--th-bg-secondary,#f1f5f9)] th-text-2 hover:bg-slate-200'}`}
+          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${filterModuleId === 'alle' ? 'th-btn th-btn-primary' : 'bg-[var(--th-bg-secondary,#f1f5f9)] th-text-2 hover:bg-[var(--th-bg-secondary)]'}`}
         >Alle Module</button>
         {data.modules.map(m => (
           <button
             key={m.id}
             onClick={() => setFilterModuleId(m.id)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${filterModuleId === m.id ? 'text-white' : 'bg-[var(--th-bg-secondary,#f1f5f9)] th-text-2 hover:bg-slate-200'}`}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${filterModuleId === m.id ? 'text-white' : 'bg-[var(--th-bg-secondary,#f1f5f9)] th-text-2 hover:bg-[var(--th-bg-secondary)]'}`}
             style={filterModuleId === m.id ? { backgroundColor: m.color } : {}}
           >
             {m.moduleNumber} {m.name}
@@ -1081,7 +1082,7 @@ export default function DokumentePage() {
                       <span>{progress}%</span>
                     </div>
                     <div className="h-1.5 bg-[var(--th-bg-secondary,#f1f5f9)] rounded-full overflow-hidden">
-                      <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${progress}%` }} />
+                      <div className="h-full rounded-full transition-all" style={{ width: `${progress}%`, background: 'var(--th-accent)' }} />
                     </div>
                   </div>
 

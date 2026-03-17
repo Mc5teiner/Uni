@@ -456,8 +456,10 @@ export default function NotenrechnerPage() {
       {/* ── Header ──────────────────────────────────────────────── */}
       <header className="flex items-start justify-between gap-4 mb-6">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <GraduationCap size={20} style={{ color: 'var(--th-accent)' }} />
+          <div className="flex items-center gap-3 mb-1">
+            <div className="md-icon-box-sm md-gradient-primary">
+              <GraduationCap size={20} />
+            </div>
             <h1 className="th-page-title" style={{ margin: 0 }}>Notenrechner</h1>
           </div>
           <p className="text-sm" style={{ color: 'var(--th-text-2)' }}>
