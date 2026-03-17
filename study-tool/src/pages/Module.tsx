@@ -160,7 +160,6 @@ function ModuleDetail({
         style={{
           background: 'var(--th-card)',
           borderBottom: '1px solid var(--th-border)',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
         }}
       >
         <button
@@ -208,7 +207,7 @@ function ModuleDetail({
       {/* Color accent strip */}
       <div className="h-1" style={{ backgroundColor: module.color }} aria-hidden="true" />
 
-      <div className="p-6 max-w-6xl mx-auto">
+      <div className="p-4 md:p-6 max-w-6xl mx-auto">
         {/* Module header card */}
         <div className="th-card p-6 mb-6">
           <div className="flex items-start gap-6 flex-wrap">

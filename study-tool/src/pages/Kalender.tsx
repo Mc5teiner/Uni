@@ -325,7 +325,7 @@ function PomodoroTimer({ onComplete }: { onComplete: (minutes: number) => void }
             onClick={() => switchMode(m)}
             className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-medium rounded-md transition-colors"
             style={mode === m
-              ? { background: modeColor, color: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }
+              ? { background: modeColor, color: '#fff' }
               : { color: 'var(--th-text-2)' }
             }
           >
