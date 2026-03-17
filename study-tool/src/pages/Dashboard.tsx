@@ -29,26 +29,25 @@ function StatCard({
   to?: string
 }) {
   const content = (
-    <div className="md-stat-card pt-10 pb-5 px-5">
-      {/* Floating gradient icon box */}
-      <div className={`md-icon-box md-gradient-${gradient}`}>
-        <Icon size={24} aria-hidden="true" />
-      </div>
-
-      {/* Value aligned right */}
-      <div className="text-right mb-3">
-        <p className="text-xs font-medium" style={{ color: 'var(--th-text-2)' }}>{label}</p>
-        <h3 className="text-2xl font-bold" style={{ color: 'var(--th-text)' }}>{value}</h3>
+    <div className="md-stat-card">
+      {/* Icon left, value right */}
+      <div className="flex items-center justify-between">
+        <div className={`md-icon-box md-gradient-${gradient} shrink-0`}>
+          <Icon size={24} aria-hidden="true" />
+        </div>
+        <div className="text-right min-w-0">
+          <p className="text-xs font-medium mb-1" style={{ color: 'var(--th-text-3)' }}>{label}</p>
+          <h3 className="text-2xl font-bold leading-none" style={{ color: 'var(--th-text)' }}>{value}</h3>
+        </div>
       </div>
 
       {/* Divider + subtitle */}
       {sub && (
-        <>
-          <div style={{ borderTop: '1px solid var(--th-border)' }} />
-          <p className="text-xs mt-3 flex items-center gap-1" style={{ color: 'var(--th-text-2)' }}>
+        <div className="mt-4 pt-3" style={{ borderTop: '1px solid var(--th-border)' }}>
+          <p className="text-xs flex items-center gap-1" style={{ color: 'var(--th-text-2)' }}>
             {sub}
           </p>
-        </>
+        </div>
       )}
     </div>
   )
@@ -356,7 +355,7 @@ export default function Dashboard() {
   const upcomingDeadlines = data.events
     .filter(e => parseISO(e.date) >= new Date())
     .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(0, 6)
+    .slice(0, 5)
 
   const weekSessions   = data.sessions.filter(s => s.date >= weekAgo)
   const weekMinutes    = weekSessions.reduce((sum, s) => sum + s.durationMinutes, 0)
@@ -376,10 +375,10 @@ export default function Dashboard() {
   })()
 
   return (
-    <div className="p-4 md:p-6">
+    <div className="p-5 md:p-8 lg:p-10">
 
-      {/* ── Stat cards (Material Dashboard style with floating icons) ── */}
-      <section aria-label="Lernstatistiken" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-8 mt-6">
+      {/* ── Stat cards ── */}
+      <section aria-label="Lernstatistiken" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
         <StatCard
           icon={BookOpen}
           label="Aktive Module"
@@ -442,14 +441,14 @@ export default function Dashboard() {
       )}
 
       {/* ── Main grid ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-10">
 
         {/* Left column — 2/3 width */}
-        <div className="xl:col-span-2 space-y-8">
+        <div className="xl:col-span-2 space-y-10">
 
           {/* Study activity — chart card with dark gradient header */}
-          <section aria-labelledby="chart-heading" className="th-card pt-6 pb-4">
-            <div className="md-chart-header md-gradient-success" style={{ marginTop: '-2rem' }}>
+          <section aria-labelledby="chart-heading" className="th-card pt-8 pb-5">
+            <div className="md-chart-header md-gradient-success">
               {weekSessions.length > 0 ? (
                 <WeekChart sessions={data.sessions} />
               ) : (
@@ -458,8 +457,8 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
-            <div className="px-4 pt-4">
-              <div className="flex items-center justify-between mb-1">
+            <div className="px-5 pt-5">
+              <div className="flex items-center justify-between mb-2">
                 <h2 id="chart-heading" className="th-section-title">
                   Lernaktivität
                 </h2>
@@ -473,7 +472,7 @@ export default function Dashboard() {
             </div>
 
             {data.sessions.length > 0 && (
-              <div className="px-4 pt-4">
+              <div className="px-5 pt-5">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-medium" style={{ color: 'var(--th-text-3)' }}>
                     Letzte 30 Tage
@@ -510,7 +509,7 @@ export default function Dashboard() {
           {/* Active modules progress */}
           {activeModules.length > 0 && (
             <section aria-labelledby="modules-heading" className="th-card p-6">
-              <h2 id="modules-heading" className="th-section-title mb-5">Modulfortschritt</h2>
+              <h2 id="modules-heading" className="th-section-title mb-6">Modulfortschritt</h2>
               <table className="md-table">
                 <thead>
                   <tr>
@@ -639,10 +638,7 @@ export default function Dashboard() {
                 <Link
                   key={item.to}
                   to={item.to}
-                  className="flex items-center gap-3 px-3 py-3 rounded-lg no-underline group"
-                  style={{ transition: 'background 150ms ease' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--th-card-hover)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = '')}
+                  className="flex items-center gap-3 px-3 py-3 rounded-lg no-underline group th-hover-bg"
                 >
                   <div className={`md-icon-box-sm md-gradient-${item.gradient}`}>
                     <item.icon size={17} aria-hidden="true" />

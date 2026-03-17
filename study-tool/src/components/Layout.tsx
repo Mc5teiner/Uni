@@ -68,7 +68,7 @@ function SidebarContent({
       <div
         className="flex items-center shrink-0 px-6 py-5"
         style={{
-          borderBottom: '1px solid rgba(255,255,255,0.10)',
+          borderBottom: '1px solid var(--th-sidebar-border)',
           minHeight: '64px',
           justifyContent: collapsed ? 'center' : 'space-between',
         }}
@@ -171,7 +171,7 @@ function SidebarContent({
       {/* ── Logout ───────────────────────────────────────────────── */}
       <div
         className="px-3 py-3 shrink-0"
-        style={{ borderTop: '1px solid rgba(255,255,255,0.10)' }}
+        style={{ borderTop: '1px solid var(--th-sidebar-border)' }}
       >
         <button
           onClick={handleLogout}
@@ -278,10 +278,11 @@ export default function Layout() {
 
           {/* ── Top Navbar ── */}
           <header
-            className="flex items-center gap-4 px-4 md:px-6 shrink-0"
+            className="flex items-center gap-4 px-5 md:px-8 shrink-0"
             style={{
-              height: '64px',
-              background: 'transparent',
+              height: '68px',
+              background: 'var(--th-bg)',
+              borderBottom: '1px solid var(--th-border)',
             }}
           >
             {/* Mobile hamburger */}
@@ -302,7 +303,7 @@ export default function Layout() {
                 <span>/</span>
                 <span style={{ color: 'var(--th-text)' }}>{pageLabel}</span>
               </div>
-              <h1 className="text-sm font-bold" style={{ color: 'var(--th-text)' }}>
+              <h1 className="text-base font-bold" style={{ color: 'var(--th-text)' }}>
                 {pageLabel}
               </h1>
             </div>
