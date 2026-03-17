@@ -623,15 +623,15 @@ body {
   background: var(--th-card);
   border-radius: var(--th-radius);
   box-shadow: var(--th-card-shadow);
-  padding: 1rem;
+  padding: 1.25rem;
   position: relative;
   overflow: visible;
 }
 
 .md-stat-card .md-icon-box {
   position: absolute;
-  top: -1rem;
-  left: 1rem;
+  top: -1.25rem;
+  left: 1.25rem;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -824,7 +824,7 @@ body {
 .md-table tbody td {
   font-size: var(--text-sm);
   color: var(--th-text);
-  padding: 0.75rem 1rem;
+  padding: 1rem 1rem;
   border-bottom: 1px solid var(--th-border);
   vertical-align: middle;
 }
