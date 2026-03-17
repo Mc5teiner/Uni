@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 
-export type ThemeId = 'classic' | 'horizon' | 'vision'
+export type ThemeId = 'material' | 'material-dark'
 
 export interface ThemeDefinition {
   id: ThemeId
@@ -11,22 +11,16 @@ export interface ThemeDefinition {
 
 export const THEMES: ThemeDefinition[] = [
   {
-    id: 'classic',
-    name: 'Classic',
-    description: 'Klares, professionelles Design in FernUni-Blau',
-    preview: { sidebar: '#003366', bg: '#f8fafc', card: '#ffffff', accent: '#003366' },
+    id: 'material',
+    name: 'Material Light',
+    description: 'Helles Material Dashboard Design',
+    preview: { sidebar: '#42424a', bg: '#f0f2f5', card: '#ffffff', accent: '#4CAF50' },
   },
   {
-    id: 'horizon',
-    name: 'Horizon',
-    description: 'Modernes Light-Design mit lila Akzenten und weichen Schatten',
-    preview: { sidebar: '#ffffff', bg: '#f4f7fe', card: '#ffffff', accent: '#4318ff' },
-  },
-  {
-    id: 'vision',
-    name: 'Vision Dark',
-    description: 'Dunkles Glassmorphism-Design mit Neon-Akzenten',
-    preview: { sidebar: '#111c44', bg: '#0b1437', card: 'rgba(255,255,255,0.07)', accent: '#4318ff' },
+    id: 'material-dark',
+    name: 'Material Dark',
+    description: 'Dunkles Material Dashboard Design',
+    preview: { sidebar: '#42424a', bg: '#1a2035', card: '#202940', accent: '#66BB6A' },
   },
 ]
 
@@ -35,12 +29,13 @@ interface ThemeContextValue {
   setTheme: (t: ThemeId) => void
 }
 
-const ThemeContext = createContext<ThemeContextValue>({ theme: 'classic', setTheme: () => {} })
+const ThemeContext = createContext<ThemeContextValue>({ theme: 'material', setTheme: () => {} })
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<ThemeId>(() => {
     const stored = localStorage.getItem('ui-theme')
-    return (stored as ThemeId | null) ?? 'classic'
+    if (stored === 'material' || stored === 'material-dark') return stored
+    return 'material'
   })
 
   function setTheme(t: ThemeId) {
@@ -52,7 +47,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
 
-  // Set on first render
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

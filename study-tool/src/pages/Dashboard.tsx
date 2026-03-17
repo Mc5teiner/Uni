@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
-import { useAuth } from '../context/AuthContext'
 import { getDueCards } from '../utils/spaceRepetition'
 import { format, parseISO, isToday, isTomorrow, differenceInDays, startOfWeek, eachDayOfInterval, endOfWeek, subDays } from 'date-fns'
 import { de } from 'date-fns/locale'
@@ -12,89 +11,51 @@ import {
   GRADE_CONFIG_KEY, fmtGrade2, fmtGrade1, gradeColor, gradeLabel, roundToStep,
 } from '../utils/gradeCalculations'
 
-function getGreeting(name: string): string {
-  const h = new Date().getHours()
-  const salut =
-    h >= 5  && h < 12 ? 'Guten Morgen' :
-    h >= 12 && h < 18 ? 'Guten Tag'    :
-    h >= 18 && h < 23 ? 'Guten Abend'  : 'Gute Nacht'
-  return `${salut}, ${name}!`
-}
-
-const ICON_COLORS = {
-  blue:   { bg: 'rgba(59,130,246,0.12)',  text: '#3B82F6' },
-  green:  { bg: 'rgba(16,185,129,0.12)', text: '#10B981' },
-  red:    { bg: 'rgba(239,68,68,0.12)',  text: '#EF4444' },
-  purple: { bg: 'rgba(139,92,246,0.12)', text: '#8B5CF6' },
-  orange: { bg: 'rgba(249,115,22,0.12)', text: '#F97316' },
-} as const
-type IconColor = keyof typeof ICON_COLORS
+type GradientType = 'primary' | 'info' | 'warning' | 'danger' | 'dark' | 'success'
 
 function StatCard({
   icon: Icon,
   label,
   value,
   sub,
-  color = 'blue',
+  gradient = 'info',
   to,
 }: {
   icon: React.ComponentType<{ size?: number; 'aria-hidden'?: boolean | 'true' | 'false' }>
   label: string
   value: string | number
   sub?: string
-  color?: IconColor
+  gradient?: GradientType
   to?: string
 }) {
-  const c = ICON_COLORS[color]
   const content = (
-    <div
-      className="th-card p-5 flex flex-col gap-4"
-      style={to ? { cursor: 'pointer' } : undefined}
-    >
-      <div className="flex items-center justify-between">
-        <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-          style={{ background: c.bg, color: c.text }}
-        >
-          <Icon size={20} aria-hidden="true" />
-        </div>
-        {to && (
-          <ArrowRight size={14} aria-hidden="true" style={{ color: 'var(--th-text-3)' }} />
-        )}
+    <div className="md-stat-card pt-8 pb-4">
+      {/* Floating gradient icon box */}
+      <div className={`md-icon-box md-gradient-${gradient}`}>
+        <Icon size={24} aria-hidden="true" />
       </div>
-      <div>
-        <div
-          className="text-3xl font-bold leading-none mb-1"
-          style={{ color: 'var(--th-text)', letterSpacing: '-0.04em' }}
-        >
-          {value}
-        </div>
-        <div className="text-sm font-medium" style={{ color: 'var(--th-text-2)' }}>{label}</div>
-        {sub && (
-          <div className="text-xs mt-1" style={{ color: 'var(--th-text-3)' }}>{sub}</div>
-        )}
+
+      {/* Value aligned right */}
+      <div className="text-right mb-3">
+        <p className="text-xs font-medium" style={{ color: 'var(--th-text-2)' }}>{label}</p>
+        <h3 className="text-2xl font-bold" style={{ color: 'var(--th-text)' }}>{value}</h3>
       </div>
+
+      {/* Divider + subtitle */}
+      {sub && (
+        <>
+          <div style={{ borderTop: '1px solid var(--th-border)' }} />
+          <p className="text-xs mt-3 flex items-center gap-1" style={{ color: 'var(--th-text-2)' }}>
+            {sub}
+          </p>
+        </>
+      )}
     </div>
   )
 
   if (to) {
     return (
-      <Link
-        to={to}
-        aria-label={`${label}: ${value}${sub ? ` (${sub})` : ''}`}
-        className="th-card-interactive block rounded-[var(--th-radius)] no-underline"
-        style={{ transition: 'box-shadow 150ms ease, transform 150ms ease' }}
-        onMouseEnter={e => {
-          const el = e.currentTarget
-          el.style.boxShadow = 'var(--th-card-shadow-hover)'
-          el.style.transform = 'translateY(-2px)'
-        }}
-        onMouseLeave={e => {
-          const el = e.currentTarget
-          el.style.boxShadow = ''
-          el.style.transform = ''
-        }}
-      >
+      <Link to={to} className="block no-underline th-card-interactive" style={{ borderRadius: 'var(--th-radius)' }}>
         {content}
       </Link>
     )
@@ -135,7 +96,7 @@ function EventRow({
         )}
       </div>
       <span
-        className="text-xs font-semibold shrink-0 px-2 py-0.5 rounded-full"
+        className="text-xs font-bold shrink-0 px-2 py-0.5 rounded"
         style={{
           background: urgent ? 'var(--th-danger-soft)' : 'var(--th-bg-secondary)',
           color:      urgent ? 'var(--th-danger)'      : 'var(--th-text-3)',
@@ -162,7 +123,7 @@ function WeekChart({ sessions }: { sessions: { date: string; durationMinutes: nu
 
   return (
     <div
-      className="flex items-end gap-2"
+      className="flex items-end gap-3"
       style={{ height: '6rem' }}
       role="img"
       aria-label="Balkendiagramm der Lernaktivität dieser Woche"
@@ -177,23 +138,24 @@ function WeekChart({ sessions }: { sessions: { date: string; durationMinutes: nu
             title={`${format(day, 'EEEE', { locale: de })}: ${total} min`}
           >
             <div
-              className="w-full rounded-lg relative flex-1 flex items-end overflow-hidden"
+              className="w-full rounded flex-1 flex items-end overflow-hidden"
               style={{ background: 'var(--th-bg-secondary)' }}
               aria-hidden="true"
             >
               <div
-                className="w-full rounded-lg"
+                className="w-full rounded"
                 style={{
                   height: `${heightPct}%`,
                   background: today
-                    ? 'var(--th-accent)'
-                    : 'color-mix(in srgb, var(--th-accent) 35%, transparent)',
+                    ? 'var(--md-gradient-primary)'
+                    : 'var(--md-gradient-info)',
+                  opacity: today ? 1 : 0.6,
                   transition: 'height 600ms cubic-bezier(0.4,0,0.2,1)',
                 }}
               />
             </div>
             <span
-              className="text-[10px] font-medium"
+              className="text-[10px] font-bold uppercase"
               style={{ color: today ? 'var(--th-accent)' : 'var(--th-text-3)' }}
             >
               {format(day, 'EEE', { locale: de })}
@@ -204,8 +166,6 @@ function WeekChart({ sessions }: { sessions: { date: string; durationMinutes: nu
     </div>
   )
 }
-
-// ─── 30-day activity heatmap strip ───────────────────────────────────────────
 
 function MonthChart({ sessions }: { sessions: { date: string; durationMinutes: number }[] }) {
   const days = Array.from({ length: 30 }, (_, i) => {
@@ -243,8 +203,6 @@ function MonthChart({ sessions }: { sessions: { date: string; durationMinutes: n
   )
 }
 
-// ─── Per-module time breakdown (last 30 days) ─────────────────────────────────
-
 function ModuleTimeChart({
   modules,
   sessions,
@@ -280,9 +238,9 @@ function ModuleTimeChart({
             {r.name}
           </span>
           <div className="flex items-center gap-2 shrink-0">
-            <div className="w-20 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--th-border)' }}>
+            <div className="w-20 th-progress-track">
               <div
-                className="h-full rounded-full"
+                className="th-progress-fill"
                 style={{ width: `${(r.minutes / maxMin) * 100}%`, backgroundColor: r.color }}
               />
             </div>
@@ -297,8 +255,6 @@ function ModuleTimeChart({
     </ul>
   )
 }
-
-// ─── Gesamtnote widget (reads grade config from localStorage) ─────────────────
 
 function GesamtnoteWidget() {
   const [cfg, setCfg] = useState<GradeConfig | null>(null)
@@ -326,16 +282,15 @@ function GesamtnoteWidget() {
         </h2>
         <Link
           to="/notenrechner"
-          className="text-xs font-semibold flex items-center gap-1 hover:underline"
+          className="text-xs font-bold flex items-center gap-1 hover:underline uppercase"
           style={{ color: 'var(--th-accent)' }}
         >
-          <Calculator size={12} /> Rechner öffnen
+          <Calculator size={12} /> Rechner
         </Link>
       </div>
 
       {gesamt !== null ? (
         <div className="flex items-center gap-5">
-          {/* Big grade number */}
           <div
             className="text-5xl font-black leading-none shrink-0"
             style={{ color: gradeColor(gesamt), letterSpacing: '-0.06em' }}
@@ -343,7 +298,7 @@ function GesamtnoteWidget() {
             {fmtGrade2(gesamt)}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold mb-0.5" style={{ color: gradeColor(gesamt) }}>
+            <div className="text-sm font-bold mb-0.5" style={{ color: gradeColor(gesamt) }}>
               {gradeLabel(gesamt)} · gerundet: {fmtGrade1(roundToStep(gesamt))}
             </div>
             <div className="flex gap-4 text-xs" style={{ color: 'var(--th-text-3)' }}>
@@ -361,7 +316,7 @@ function GesamtnoteWidget() {
               </div>
             )}
             {pflicht?.passingMet && (
-              <div className="flex items-center gap-1 text-xs mt-1.5" style={{ color: '#16a34a' }}>
+              <div className="flex items-center gap-1 text-xs mt-1.5" style={{ color: 'var(--th-success)' }}>
                 <CheckCircle2 size={11} /> Pflichtbereich bestanden
               </div>
             )}
@@ -375,7 +330,7 @@ function GesamtnoteWidget() {
           </p>
           <Link
             to="/notenrechner"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold th-btn th-btn-primary px-3 py-1.5"
+            className="inline-flex items-center gap-1.5 text-xs font-bold th-btn th-btn-primary px-3 py-1.5"
           >
             <Calculator size={13} /> Noten eingeben
           </Link>
@@ -387,7 +342,6 @@ function GesamtnoteWidget() {
 
 export default function Dashboard() {
   const { data }  = useApp()
-  const { user }  = useAuth()
   const today     = format(new Date(), 'yyyy-MM-dd')
   const weekAgo   = format(new Date(Date.now() -  7 * 86400000), 'yyyy-MM-dd')
   const monthAgo  = format(new Date(Date.now() - 30 * 86400000), 'yyyy-MM-dd')
@@ -422,43 +376,52 @@ export default function Dashboard() {
   })()
 
   return (
-    <div className="p-5 md:p-8 max-w-screen-xl mx-auto">
+    <div className="p-4 md:p-6">
 
-      {/* ── Page header ─────────────────────────────────────────── */}
-      <header className="mb-8">
-        <p className="text-sm mb-1" style={{ color: 'var(--th-text-3)' }}>
-          {format(new Date(), 'EEEE, dd. MMMM yyyy', { locale: de })}
-        </p>
-        <h1 className="th-page-title">
-          {user?.name ? getGreeting(user.name) : 'Willkommen!'}
-          {user?.studyProgram && (
-            <span
-              className="ml-2 text-lg font-normal"
-              style={{ color: 'var(--th-text-2)', letterSpacing: '-0.01em' }}
-            >
-              · {user.studyProgram}
-            </span>
-          )}
-        </h1>
-        <p className="mt-2 text-sm" style={{ color: 'var(--th-text-2)' }}>
-          {dueCards.length > 0
-            ? `Du hast ${dueCards.length} Karteikarte${dueCards.length !== 1 ? 'n' : ''} zu wiederholen.`
-            : 'Alle Karteikarten sind auf dem neuesten Stand. Gut gemacht!'}
-        </p>
-      </header>
+      {/* ── Stat cards (Material Dashboard style with floating icons) ── */}
+      <section aria-label="Lernstatistiken" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-6 mt-4">
+        <StatCard
+          icon={BookOpen}
+          label="Aktive Module"
+          value={activeModules.length}
+          sub={`${data.modules.length} Module gesamt`}
+          gradient="info"
+          to="/module"
+        />
+        <StatCard
+          icon={BrainCircuit}
+          label="Karten fällig"
+          value={dueCards.length}
+          sub={`${data.flashcards.length} Karten gesamt`}
+          gradient={dueCards.length > 0 ? 'danger' : 'success'}
+          to="/karteikarten"
+        />
+        <StatCard
+          icon={Clock}
+          label="Minuten diese Woche"
+          value={weekMinutes}
+          sub={`${weekSessions.length} Sessions`}
+          gradient="primary"
+          to="/kalender"
+        />
+        <StatCard
+          icon={studyStreak > 0 ? Flame : TrendingUp}
+          label="Lerntage in Folge"
+          value={studyStreak}
+          sub={studyStreak > 0 ? 'Weiter so!' : 'Starte heute!'}
+          gradient="warning"
+        />
+      </section>
 
       {/* ── Today's events banner ───────────────────────────────── */}
       {todayEvents.length > 0 && (
         <section
           aria-label="Heutige Termine"
-          className="rounded-2xl p-4 mb-6"
-          style={{
-            background: 'var(--th-accent-soft)',
-            border: '1px solid color-mix(in srgb, var(--th-accent) 22%, transparent)',
-          }}
+          className="th-card p-4 mb-6"
+          style={{ borderLeft: '4px solid var(--th-accent)' }}
         >
           <div
-            className="flex items-center gap-2 text-sm font-semibold mb-3"
+            className="flex items-center gap-2 text-sm font-bold mb-3"
             style={{ color: 'var(--th-accent)' }}
           >
             <Calendar size={15} aria-hidden="true" />
@@ -466,8 +429,8 @@ export default function Dashboard() {
           </div>
           <ul className="space-y-2" role="list">
             {todayEvents.map(e => (
-              <li key={e.id} className="flex items-center gap-2 text-sm" style={{ color: 'var(--th-accent-soft-text)' }}>
-                <CheckCircle2 size={14} aria-hidden="true" />
+              <li key={e.id} className="flex items-center gap-2 text-sm" style={{ color: 'var(--th-text-2)' }}>
+                <CheckCircle2 size={14} aria-hidden="true" style={{ color: 'var(--th-accent)' }} />
                 <span>{e.title}</span>
                 {e.time && (
                   <span className="opacity-60 font-mono text-xs">{e.time}</span>
@@ -478,97 +441,45 @@ export default function Dashboard() {
         </section>
       )}
 
-      {/* ── Stat cards ──────────────────────────────────────────── */}
-      <section aria-label="Lernstatistiken" className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 md:gap-4 mb-8">
-        <StatCard
-          icon={BookOpen}
-          label="Aktive Module"
-          value={activeModules.length}
-          sub={`${data.modules.length} gesamt`}
-          color="blue"
-          to="/module"
-        />
-        <StatCard
-          icon={BrainCircuit}
-          label="Karten fällig"
-          value={dueCards.length}
-          sub={`${data.flashcards.length} Karten gesamt`}
-          color={dueCards.length > 0 ? 'red' : 'green'}
-          to="/karteikarten"
-        />
-        <StatCard
-          icon={Clock}
-          label="Minuten diese Woche"
-          value={weekMinutes}
-          sub={`${weekSessions.length} Sessions`}
-          color="purple"
-          to="/kalender"
-        />
-        <StatCard
-          icon={studyStreak > 0 ? Flame : TrendingUp}
-          label="Lerntage in Folge"
-          value={studyStreak}
-          sub={studyStreak > 0 ? 'Weiter so!' : 'Starte heute!'}
-          color={studyStreak >= 3 ? 'orange' : 'green'}
-        />
-        <StatCard
-          icon={Clock}
-          label="Lernminuten gesamt"
-          value={data.sessions.reduce((sum, s) => sum + s.durationMinutes, 0)}
-          sub={`${data.sessions.length} Sessions`}
-          color="blue"
-          to="/kalender"
-        />
-      </section>
-
       {/* ── Main grid ───────────────────────────────────────────── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
         {/* Left column — 2/3 width */}
         <div className="xl:col-span-2 space-y-6">
 
-          {/* Study activity charts */}
-          <section aria-labelledby="chart-heading" className="th-card p-6">
-            <div className="flex items-center justify-between mb-5">
-              <h2 id="chart-heading" className="th-section-title">
-                Lernaktivität
-              </h2>
-              <span className="text-sm font-semibold" style={{ color: 'var(--th-text-2)' }}>
-                {weekMinutes} min diese Woche
-              </span>
+          {/* Study activity — chart card with dark gradient header */}
+          <section aria-labelledby="chart-heading" className="th-card pt-6 pb-4">
+            <div className="md-chart-header md-gradient-success" style={{ marginTop: '-2rem' }}>
+              {weekSessions.length > 0 ? (
+                <WeekChart sessions={data.sessions} />
+              ) : (
+                <div className="flex items-center justify-center text-white/70 text-sm py-4">
+                  Noch keine Lernsessions diese Woche
+                </div>
+              )}
+            </div>
+            <div className="px-4 pt-4">
+              <div className="flex items-center justify-between mb-1">
+                <h2 id="chart-heading" className="th-section-title">
+                  Lernaktivität
+                </h2>
+                <span className="text-sm font-bold" style={{ color: 'var(--th-text-2)' }}>
+                  {weekMinutes} min
+                </span>
+              </div>
+              <p className="text-xs" style={{ color: 'var(--th-text-3)' }}>
+                Diese Woche
+              </p>
             </div>
 
-            {/* Weekly bars */}
-            {weekSessions.length > 0 ? (
-              <WeekChart sessions={data.sessions} />
-            ) : (
-              <div
-                className="flex flex-col items-center justify-center text-center py-8 rounded-xl"
-                style={{ background: 'var(--th-bg-secondary)', minHeight: '6rem' }}
-              >
-                <Calendar size={28} aria-hidden="true" className="mb-2" style={{ color: 'var(--th-text-3)' }} />
-                <p className="text-sm" style={{ color: 'var(--th-text-3)' }}>
-                  Noch keine Lernsessions diese Woche.
-                </p>
-                <Link
-                  to="/kalender"
-                  className="mt-3 text-xs font-semibold underline underline-offset-2"
-                  style={{ color: 'var(--th-accent)' }}
-                >
-                  Erste Session erfassen
-                </Link>
-              </div>
-            )}
-
-            {/* 30-day strip */}
             {data.sessions.length > 0 && (
-              <div className="mt-5">
+              <div className="px-4 pt-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-medium" style={{ color: 'var(--th-text-3)' }}>
                     Letzte 30 Tage
                   </span>
                   <span className="text-xs" style={{ color: 'var(--th-text-3)' }}>
-                    {data.sessions.filter(s => s.date >= monthAgo).reduce((sum, s) => sum + s.durationMinutes, 0)} min gesamt
+                    {data.sessions.filter(s => s.date >= monthAgo).reduce((sum, s) => sum + s.durationMinutes, 0)} min
                   </span>
                 </div>
                 <MonthChart sessions={data.sessions} />
@@ -580,9 +491,13 @@ export default function Dashboard() {
           {data.sessions.filter(s => s.date >= monthAgo).length > 0 && (
             <section aria-labelledby="modtime-heading" className="th-card p-6">
               <div className="flex items-center gap-2 mb-5">
-                <BarChart2 size={16} aria-hidden="true" style={{ color: 'var(--th-accent)' }} />
-                <h2 id="modtime-heading" className="th-section-title">Lernzeit pro Modul</h2>
-                <span className="text-xs ml-auto" style={{ color: 'var(--th-text-3)' }}>30 Tage</span>
+                <div className="md-icon-box-sm md-gradient-info">
+                  <BarChart2 size={18} aria-hidden="true" />
+                </div>
+                <div>
+                  <h2 id="modtime-heading" className="th-section-title">Lernzeit pro Modul</h2>
+                  <p className="text-xs" style={{ color: 'var(--th-text-3)' }}>30 Tage</p>
+                </div>
               </div>
               <ModuleTimeChart
                 modules={data.modules}
@@ -596,103 +511,71 @@ export default function Dashboard() {
           {activeModules.length > 0 && (
             <section aria-labelledby="modules-heading" className="th-card p-6">
               <h2 id="modules-heading" className="th-section-title mb-5">Modulfortschritt</h2>
-              <ul className="space-y-4" role="list">
-                {activeModules.map(m => {
-                  const moduleDocs  = data.documents.filter(d => d.moduleId === m.id)
-                  const docProgress = moduleDocs.length > 0
-                    ? moduleDocs.reduce((sum, d) => sum + (d.totalPages > 0 ? d.currentPage / d.totalPages : 0), 0) / moduleDocs.length * 100
-                    : 0
-                  const dueForModule   = getDueCards(data.flashcards, m.id).length
-                  const totalForModule = data.flashcards.filter(c => c.moduleId === m.id).length
-                  const weekMin        = data.sessions
-                    .filter(s => s.moduleId === m.id && s.date >= weekAgo)
-                    .reduce((sum, s) => sum + s.durationMinutes, 0)
-                  const daysUntilExam  = m.examDate
-                    ? differenceInDays(parseISO(m.examDate), new Date())
-                    : null
+              <table className="md-table">
+                <thead>
+                  <tr>
+                    <th>Modul</th>
+                    <th>Fortschritt</th>
+                    <th>Karten</th>
+                    <th>Woche</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeModules.map(m => {
+                    const moduleDocs  = data.documents.filter(d => d.moduleId === m.id)
+                    const docProgress = moduleDocs.length > 0
+                      ? moduleDocs.reduce((sum, d) => sum + (d.totalPages > 0 ? d.currentPage / d.totalPages : 0), 0) / moduleDocs.length * 100
+                      : 0
+                    const dueForModule   = getDueCards(data.flashcards, m.id).length
+                    const weekMin        = data.sessions
+                      .filter(s => s.moduleId === m.id && s.date >= weekAgo)
+                      .reduce((sum, s) => sum + s.durationMinutes, 0)
 
-                  return (
-                    <li key={m.id} className="th-card-secondary p-4 rounded-xl">
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <div className="flex items-center gap-3">
-                          <span
-                            className="w-3 h-3 rounded-full shrink-0 mt-0.5"
-                            aria-hidden="true"
-                            style={{ backgroundColor: m.color }}
-                          />
-                          <div>
-                            <div className="text-sm font-semibold" style={{ color: 'var(--th-text)' }}>
-                              {m.name}
-                            </div>
-                            <div className="text-xs mt-0.5" style={{ color: 'var(--th-text-3)' }}>
-                              {m.moduleNumber} · {m.credits} ECTS
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 shrink-0">
-                          {daysUntilExam !== null && (
+                    return (
+                      <tr key={m.id}>
+                        <td>
+                          <div className="flex items-center gap-2">
                             <span
-                              className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                              style={{
-                                background: daysUntilExam <= 14 ? 'var(--th-danger-soft)' : 'var(--th-bg-secondary)',
-                                color:      daysUntilExam <= 14 ? 'var(--th-danger)'      : 'var(--th-text-2)',
-                              }}
-                            >
-                              Prüfung in {daysUntilExam}d
-                            </span>
-                          )}
-                          <span className="text-xs" style={{ color: 'var(--th-text-3)' }}>
-                            {weekMin} min/W
-                          </span>
-                        </div>
-                      </div>
-
-                      {moduleDocs.length > 0 && (
-                        <div className="mb-3">
-                          <div
-                            className="flex justify-between text-xs mb-1.5"
-                            style={{ color: 'var(--th-text-3)' }}
-                          >
-                            <span>Studienbriefe gelesen</span>
-                            <span className="font-semibold">{Math.round(docProgress)}%</span>
-                          </div>
-                          <div
-                            className="h-1.5 rounded-full overflow-hidden"
-                            style={{ background: 'var(--th-border)' }}
-                            role="progressbar"
-                            aria-valuenow={Math.round(docProgress)}
-                            aria-valuemin={0}
-                            aria-valuemax={100}
-                            aria-label={`Lesefortschritt ${m.name}: ${Math.round(docProgress)}%`}
-                          >
-                            <div
-                              className="h-full rounded-full"
-                              style={{
-                                width: `${docProgress}%`,
-                                backgroundColor: m.color,
-                                transition: 'width 600ms cubic-bezier(0.4,0,0.2,1)',
-                              }}
+                              className="w-2.5 h-2.5 rounded-full shrink-0"
+                              style={{ backgroundColor: m.color }}
                             />
+                            <div>
+                              <div className="font-medium text-sm">{m.name}</div>
+                              <div className="text-xs" style={{ color: 'var(--th-text-3)' }}>{m.moduleNumber}</div>
+                            </div>
                           </div>
-                        </div>
-                      )}
-
-                      <div className="flex gap-4 text-xs" style={{ color: 'var(--th-text-3)' }}>
-                        <span>{moduleDocs.length} Briefe</span>
-                        <span
-                          style={{
-                            color:      dueForModule > 0 ? 'var(--th-danger)' : 'var(--th-text-3)',
-                            fontWeight: dueForModule > 0 ? '600'              : 'normal',
-                          }}
-                        >
-                          {dueForModule} fällige Karten
-                        </span>
-                        <span>{totalForModule} Karten gesamt</span>
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
+                        </td>
+                        <td>
+                          <div className="flex items-center gap-2">
+                            <div className="w-24 th-progress-track">
+                              <div
+                                className="th-progress-fill"
+                                style={{ width: `${docProgress}%`, background: 'var(--md-gradient-info)' }}
+                              />
+                            </div>
+                            <span className="text-xs font-bold" style={{ color: 'var(--th-text-2)' }}>
+                              {Math.round(docProgress)}%
+                            </span>
+                          </div>
+                        </td>
+                        <td>
+                          <span
+                            className="text-xs font-bold"
+                            style={{ color: dueForModule > 0 ? 'var(--th-danger)' : 'var(--th-text-3)' }}
+                          >
+                            {dueForModule} fällig
+                          </span>
+                        </td>
+                        <td>
+                          <span className="text-xs" style={{ color: 'var(--th-text-3)' }}>
+                            {weekMin} min
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </section>
           )}
 
@@ -727,32 +610,28 @@ export default function Dashboard() {
                 {
                   to:   '/karteikarten',
                   icon: BrainCircuit,
-                  bg:   dueCards.length > 0 ? 'rgba(239,68,68,0.12)'   : 'rgba(16,185,129,0.12)',
-                  fg:   dueCards.length > 0 ? '#EF4444'                 : '#10B981',
+                  gradient: dueCards.length > 0 ? 'danger' : 'success',
                   label: dueCards.length > 0 ? `${dueCards.length} Karten lernen` : 'Karteikarten',
                   sub:  'Spaced Repetition',
                 },
                 {
                   to:   '/dokumente',
                   icon: FileText,
-                  bg:   'rgba(59,130,246,0.12)',
-                  fg:   '#3B82F6',
+                  gradient: 'info',
                   label: 'Studienbriefe',
                   sub:  `${docsInProgress.length} in Bearbeitung`,
                 },
                 {
                   to:   '/kalender',
                   icon: Calendar,
-                  bg:   'rgba(139,92,246,0.12)',
-                  fg:   '#8B5CF6',
+                  gradient: 'warning',
                   label: 'Kalender',
                   sub:  `${upcomingDeadlines.length} kommende Termine`,
                 },
                 {
                   to:   '/notenrechner',
                   icon: Calculator,
-                  bg:   'rgba(16,185,129,0.12)',
-                  fg:   '#10B981',
+                  gradient: 'primary',
                   label: 'Notenrechner',
                   sub:  'B.Sc. Gesamtnote berechnen',
                 },
@@ -760,19 +639,16 @@ export default function Dashboard() {
                 <Link
                   key={item.to}
                   to={item.to}
-                  className="flex items-center gap-3 px-3 py-3 rounded-xl no-underline group"
+                  className="flex items-center gap-3 px-3 py-3 rounded-lg no-underline group"
                   style={{ transition: 'background 150ms ease' }}
                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--th-card-hover)')}
                   onMouseLeave={e => (e.currentTarget.style.background = '')}
                 >
-                  <div
-                    className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                    style={{ background: item.bg, color: item.fg }}
-                  >
+                  <div className={`md-icon-box-sm md-gradient-${item.gradient}`}>
                     <item.icon size={17} aria-hidden="true" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold" style={{ color: 'var(--th-text)' }}>
+                    <div className="text-sm font-bold" style={{ color: 'var(--th-text)' }}>
                       {item.label}
                     </div>
                     <div className="text-xs mt-0.5" style={{ color: 'var(--th-text-3)' }}>
@@ -806,13 +682,10 @@ export default function Dashboard() {
           {data.modules.length === 0 && (
             <div
               className="th-card p-8 text-center"
-              style={{ borderStyle: 'dashed' }}
+              style={{ borderStyle: 'dashed', border: '2px dashed var(--th-border)' }}
             >
-              <div
-                className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
-                style={{ background: 'var(--th-accent-soft)' }}
-              >
-                <BookOpen size={28} aria-hidden="true" style={{ color: 'var(--th-accent)' }} />
+              <div className="md-icon-box md-gradient-info mx-auto mb-4">
+                <BookOpen size={28} aria-hidden="true" />
               </div>
               <h3 className="text-sm font-bold mb-1" style={{ color: 'var(--th-text)' }}>
                 Fang hier an!

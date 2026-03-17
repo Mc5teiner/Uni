@@ -12,10 +12,10 @@ interface SearchResult {
 }
 
 const TYPE_CONFIG = {
-  module:    { label: 'Modul',        icon: BookOpen },
-  document:  { label: 'Studienbrief', icon: FileText },
-  flashcard: { label: 'Karteikarte',  icon: BrainCircuit },
-  deck:      { label: 'Karteikasten', icon: Hash },
+  module:    { label: 'Modul',        icon: BookOpen,     gradient: 'md-gradient-info' },
+  document:  { label: 'Studienbrief', icon: FileText,     gradient: 'md-gradient-primary' },
+  flashcard: { label: 'Karteikarte',  icon: BrainCircuit, gradient: 'md-gradient-warning' },
+  deck:      { label: 'Karteikasten', icon: Hash,         gradient: 'md-gradient-dark' },
 } as const
 
 export default function GlobalSearch({ onClose }: { onClose: () => void }) {
@@ -99,15 +99,15 @@ export default function GlobalSearch({ onClose }: { onClose: () => void }) {
   return (
     <div
       className="fixed inset-0 z-[500] flex items-start justify-center pt-[10vh] px-4"
-      style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+      style={{ background: 'rgba(0,0,0,0.50)', backdropFilter: 'blur(4px)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
       role="dialog"
       aria-modal="true"
       aria-label="Globale Suche"
     >
       <div
-        className="w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden"
-        style={{ background: 'var(--th-card)', border: '1px solid var(--th-border)' }}
+        className="w-full max-w-xl rounded-xl overflow-hidden"
+        style={{ background: 'var(--th-card)', boxShadow: '0 24px 64px rgba(0,0,0,0.20)' }}
       >
         {/* ── Input ─────────────────────────────────────────────── */}
         <div
@@ -119,7 +119,7 @@ export default function GlobalSearch({ onClose }: { onClose: () => void }) {
             ref={inputRef}
             type="search"
             className="flex-1 bg-transparent outline-none text-base"
-            style={{ color: 'var(--th-text)' }}
+            style={{ color: 'var(--th-text)', fontFamily: 'var(--font-sans)' }}
             placeholder="Module, Dokumente, Karteikarten durchsuchen…"
             value={query}
             onChange={e => setQuery(e.target.value)}
@@ -150,7 +150,7 @@ export default function GlobalSearch({ onClose }: { onClose: () => void }) {
             ) : (
               <ul role="listbox" aria-label="Suchergebnisse">
                 {results.map((r, i) => {
-                  const { icon: Icon, label } = TYPE_CONFIG[r.type]
+                  const { icon: Icon, label, gradient } = TYPE_CONFIG[r.type]
                   return (
                     <li key={`${r.type}-${r.id}`} role="option" aria-selected={i === selected}>
                       <button
@@ -164,17 +164,16 @@ export default function GlobalSearch({ onClose }: { onClose: () => void }) {
                         onMouseEnter={() => setSelected(i)}
                       >
                         <div
-                          className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                          style={{ background: 'var(--th-bg-secondary)' }}
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${gradient}`}
                         >
-                          <Icon size={15} aria-hidden="true" style={{ color: 'var(--th-accent)' }} />
+                          <Icon size={14} aria-hidden="true" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium truncate" style={{ color: 'var(--th-text)' }}>
                             {r.title}
                           </div>
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="text-[11px] font-semibold" style={{ color: 'var(--th-accent)', opacity: 0.8 }}>
+                            <span className="text-[11px] font-bold uppercase" style={{ color: 'var(--th-accent)' }}>
                               {label}
                             </span>
                             {r.subtitle && (
@@ -196,7 +195,6 @@ export default function GlobalSearch({ onClose }: { onClose: () => void }) {
             )}
           </div>
         ) : (
-          /* ── Keyboard hints ───────────────────────────────────── */
           <div
             className="px-4 py-3 flex items-center gap-5 text-xs"
             style={{ color: 'var(--th-text-3)' }}

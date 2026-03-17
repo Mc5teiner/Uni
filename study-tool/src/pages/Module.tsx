@@ -197,7 +197,7 @@ function ModuleDetail({
         </button>
         <button
           onClick={onDelete}
-          className="th-icon-btn hover:bg-red-50"
+          className="th-icon-btn"
           aria-label={`Modul "${module.name}" löschen`}
           style={{ color: 'var(--th-text-3)' }}
         >
@@ -463,7 +463,7 @@ function ModuleDetail({
                         <button
                           type="button"
                           onClick={() => removeAssignment(ea.id)}
-                          className="th-icon-btn hover:bg-red-50"
+                          className="th-icon-btn"
                           aria-label={`Einsendearbeit "${ea.title}" entfernen`}
                           style={{ color: 'var(--th-text-3)', alignSelf: 'flex-start' }}
                         >
@@ -580,7 +580,7 @@ function ModuleDetail({
                 {[
                   { label: 'Karteikarten gesamt', value: stats.totalCards, className: '' },
                   { label: 'Heute fällig',         value: stats.dueCards,  className: stats.dueCards > 0 ? '' : '' },
-                  { label: 'Gut bekannt (≥14d)',   value: cards.filter(c => c.interval >= 14).length, className: 'text-green-600' },
+                  { label: 'Gut bekannt (≥14d)',   value: cards.filter(c => c.interval >= 14).length, className: '' },
                 ].map(row => (
                   <div key={row.label} className="flex items-center justify-between">
                     <dt className="text-sm" style={{ color: 'var(--th-text-2)' }}>{row.label}</dt>
@@ -1494,7 +1494,7 @@ export default function ModulePage() {
   }
 
   return (
-    <div className="p-5 md:p-8">
+    <div className="p-4 md:p-6">
       {/* Page header */}
       <div className="flex items-start justify-between gap-4 mb-8">
         <div>

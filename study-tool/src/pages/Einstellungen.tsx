@@ -305,7 +305,7 @@ function StorageSection() {
 
   if (!info) return null
 
-  const color = info.percentage > 90 ? 'bg-red-500' : info.percentage > 70 ? 'bg-amber-500' : 'bg-teal-500'
+  const barColor = info.percentage > 90 ? 'var(--th-danger)' : info.percentage > 70 ? 'var(--th-warning)' : 'var(--th-success)'
 
   return (
     <div className="th-card p-5 mb-6">
@@ -315,7 +315,7 @@ function StorageSection() {
         <span>{formatBytes(info.limit)} gesamt</span>
       </div>
       <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--th-border)' }}>
-        <div className={`h-full ${color} transition-all`} style={{ width: `${Math.min(info.percentage, 100)}%` }} />
+        <div className="h-full transition-all" style={{ width: `${Math.min(info.percentage, 100)}%`, background: barColor }} />
       </div>
       <div className="text-xs th-text-3 mt-1.5">{info.percentage}% belegt</div>
     </div>
@@ -569,7 +569,7 @@ export default function EinstellungenPage() {
   const totalMinutes = data.sessions.reduce((sum, s) => sum + s.durationMinutes, 0)
 
   return (
-    <div className="p-6 max-w-2xl">
+    <div className="p-4 md:p-6 max-w-2xl">
       <h1 className="text-2xl font-bold th-text mb-6">Einstellungen</h1>
 
       {/* Theme */}

@@ -20,9 +20,9 @@ const MODE_LABELS: Record<Mode, string> = {
 }
 
 const MODE_COLORS: Record<Mode, string> = {
-  work:       '#2563eb',
-  shortBreak: '#16a34a',
-  longBreak:  '#7c3aed',
+  work:       '#1A73E8',
+  shortBreak: '#4CAF50',
+  longBreak:  '#fb8c00',
 }
 
 const LONG_BREAK_EVERY = 4
@@ -185,10 +185,12 @@ export default function PomodoroPage() {
 
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <Timer size={24} style={{ color: 'var(--th-accent)' }} />
+        <div className="md-icon-box-sm md-gradient-info">
+          <Timer size={20} />
+        </div>
         <div>
-          <h1 className="text-2xl font-bold th-text">Pomodoro-Timer</h1>
-          <p className="text-sm th-text-2 mt-0.5">Fokussiertes Lernen in 25-Minuten-Intervallen</p>
+          <h1 className="text-xl font-bold" style={{ color: 'var(--th-text)' }}>Pomodoro-Timer</h1>
+          <p className="text-xs" style={{ color: 'var(--th-text-2)' }}>Fokussiertes Lernen in 25-Minuten-Intervallen</p>
         </div>
       </div>
 
@@ -260,7 +262,7 @@ export default function PomodoroPage() {
       {mode === 'work' && (
         <div
           className="th-card p-5 mb-6 space-y-4"
-          style={{ border: '1px solid var(--th-border)' }}
+          style={{  }}
         >
           <h3 className="text-sm font-semibold th-text flex items-center gap-2">
             <BookOpen size={15} style={{ color: 'var(--th-text-3)' }} />
