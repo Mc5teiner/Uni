@@ -29,7 +29,7 @@ function StatCard({
   to?: string
 }) {
   const content = (
-    <div className="md-stat-card pt-8 pb-4">
+    <div className="md-stat-card pt-10 pb-5 px-5">
       {/* Floating gradient icon box */}
       <div className={`md-icon-box md-gradient-${gradient}`}>
         <Icon size={24} aria-hidden="true" />
@@ -379,7 +379,7 @@ export default function Dashboard() {
     <div className="p-4 md:p-6">
 
       {/* ── Stat cards (Material Dashboard style with floating icons) ── */}
-      <section aria-label="Lernstatistiken" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-6 mt-4">
+      <section aria-label="Lernstatistiken" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-8 mt-6">
         <StatCard
           icon={BookOpen}
           label="Aktive Module"
@@ -442,10 +442,10 @@ export default function Dashboard() {
       )}
 
       {/* ── Main grid ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
 
         {/* Left column — 2/3 width */}
-        <div className="xl:col-span-2 space-y-6">
+        <div className="xl:col-span-2 space-y-8">
 
           {/* Study activity — chart card with dark gradient header */}
           <section aria-labelledby="chart-heading" className="th-card pt-6 pb-4">
@@ -597,7 +597,7 @@ export default function Dashboard() {
         </div>
 
         {/* Right column */}
-        <div className="space-y-6">
+        <div className="space-y-8">
 
           {/* Gesamtnote widget */}
           <GesamtnoteWidget />
