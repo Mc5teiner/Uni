@@ -676,7 +676,7 @@ body {
   border-radius: var(--radius-card);
   border: 0.5px solid var(--p3);
   box-shadow: none;
-  padding: 15px 17px;
+  padding: 20px 22px;
   position: relative;
   overflow: visible;
 }

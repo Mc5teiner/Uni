@@ -273,7 +273,7 @@ function GesamtnoteWidget() {
   const wahl    = cfg ? calcWahlStats(cfg)    : null
 
   return (
-    <section aria-labelledby="grade-heading" className="th-card" style={{ padding: '15px 17px' }}>
+    <section aria-labelledby="grade-heading" className="th-card" style={{ padding: '20px 22px' }}>
       <div className="flex items-center justify-between mb-4">
         <h2 id="grade-heading" className="th-section-title flex items-center gap-2">
           <GraduationCap size={16} aria-hidden="true" style={{ color: 'var(--th-accent)' }} />
@@ -375,10 +375,10 @@ export default function Dashboard() {
   })()
 
   return (
-    <div className="p-4 md:p-6">
+    <div className="p-5 md:p-8 lg:p-10">
 
       {/* ── Stat cards ── */}
-      <section aria-label="Lernstatistiken" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-10">
+      <section aria-label="Lernstatistiken" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-12">
         <StatCard
           icon={BookOpen}
           label="Aktive Module"
@@ -441,13 +441,13 @@ export default function Dashboard() {
       )}
 
       {/* ── Main grid ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-10">
 
         {/* Left column — 2/3 width */}
-        <div className="xl:col-span-2 space-y-6">
+        <div className="xl:col-span-2 space-y-8">
 
           {/* Study activity — chart card with dark gradient header */}
-          <section aria-labelledby="chart-heading" className="th-card p-4">
+          <section aria-labelledby="chart-heading" className="th-card p-5">
             <div className="md-chart-header">
               {weekSessions.length > 0 ? (
                 <WeekChart sessions={data.sessions} />
@@ -488,7 +488,7 @@ export default function Dashboard() {
 
           {/* Per-module time breakdown */}
           {data.sessions.filter(s => s.date >= monthAgo).length > 0 && (
-            <section aria-labelledby="modtime-heading" className="th-card" style={{ padding: '15px 17px' }}>
+            <section aria-labelledby="modtime-heading" className="th-card" style={{ padding: '20px 22px' }}>
               <div className="flex items-center gap-2 mb-5">
                 <div className="md-icon-box-sm md-gradient-info">
                   <BarChart2 size={18} aria-hidden="true" />
@@ -508,7 +508,7 @@ export default function Dashboard() {
 
           {/* Active modules progress */}
           {activeModules.length > 0 && (
-            <section aria-labelledby="modules-heading" className="th-card" style={{ padding: '15px 17px' }}>
+            <section aria-labelledby="modules-heading" className="th-card" style={{ padding: '20px 22px' }}>
               <h2 id="modules-heading" className="th-section-title mb-6">Modulfortschritt</h2>
               <table className="md-table">
                 <thead>
@@ -580,7 +580,7 @@ export default function Dashboard() {
 
           {/* Upcoming exams */}
           {upcomingExams.length > 0 && (
-            <section aria-labelledby="exams-heading" className="th-card" style={{ padding: '15px 17px' }}>
+            <section aria-labelledby="exams-heading" className="th-card" style={{ padding: '20px 22px' }}>
               <h2 id="exams-heading" className="flex items-center gap-2 th-section-title mb-4">
                 <AlertCircle size={16} aria-hidden="true" style={{ color: 'var(--th-danger)' }} />
                 Kommende Prüfungen
@@ -596,13 +596,13 @@ export default function Dashboard() {
         </div>
 
         {/* Right column */}
-        <div className="space-y-6">
+        <div className="space-y-8">
 
           {/* Gesamtnote widget */}
           <GesamtnoteWidget />
 
           {/* Quick actions */}
-          <section aria-labelledby="quicklinks-heading" className="th-card" style={{ padding: '15px 17px' }}>
+          <section aria-labelledby="quicklinks-heading" className="th-card" style={{ padding: '20px 22px' }}>
             <h2 id="quicklinks-heading" className="th-section-title mb-4">Schnellzugriff</h2>
             <nav aria-label="Schnellzugriff" className="space-y-1">
               {[
@@ -663,7 +663,7 @@ export default function Dashboard() {
 
           {/* Upcoming events */}
           {upcomingDeadlines.length > 0 && (
-            <section aria-labelledby="upcoming-heading" className="th-card" style={{ padding: '15px 17px' }}>
+            <section aria-labelledby="upcoming-heading" className="th-card" style={{ padding: '20px 22px' }}>
               <h2 id="upcoming-heading" className="th-section-title mb-4">Nächste Termine</h2>
               <ul role="list" style={{ listStyle: 'none' }}>
                 {upcomingDeadlines.map(e => {
