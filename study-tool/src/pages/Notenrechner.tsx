@@ -482,7 +482,7 @@ export default function NotenrechnerPage() {
               aria-checked={config.po === po}
               className="px-3 py-1.5 text-sm font-semibold rounded-lg transition-all"
               style={config.po === po
-                ? { background: 'var(--th-accent)', color: 'white', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }
+                ? { background: 'var(--th-accent)', color: 'white' }
                 : { color: 'var(--th-text-2)' }
               }
             >

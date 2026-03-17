@@ -350,7 +350,6 @@ function ThemeSection() {
               style={{
                 border: active ? '2px solid var(--th-accent)' : '2px solid var(--th-border)',
                 background: active ? 'var(--th-accent-soft)' : 'var(--th-card-secondary)',
-                boxShadow: active ? '0 0 0 3px color-mix(in srgb, var(--th-accent) 15%, transparent)' : 'none',
               }}
             >
               {/* Mini preview */}

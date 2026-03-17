@@ -205,7 +205,7 @@ export default function PomodoroPage() {
             onClick={() => switchMode(m)}
             className="flex-1 py-2 px-2 rounded-lg text-sm font-semibold transition-colors"
             style={mode === m
-              ? { background: 'var(--th-card)', color: 'var(--th-text)', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }
+              ? { background: 'var(--th-card)', color: 'var(--th-text)' }
               : { color: 'var(--th-text-2)' }
             }
           >

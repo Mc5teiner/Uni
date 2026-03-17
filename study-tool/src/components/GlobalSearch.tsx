@@ -107,7 +107,7 @@ export default function GlobalSearch({ onClose }: { onClose: () => void }) {
     >
       <div
         className="w-full max-w-xl rounded-xl overflow-hidden"
-        style={{ background: 'var(--th-card)', boxShadow: '0 24px 64px rgba(0,0,0,0.20)' }}
+        style={{ background: 'var(--th-card)' }}
       >
         {/* ── Input ─────────────────────────────────────────────── */}
         <div
