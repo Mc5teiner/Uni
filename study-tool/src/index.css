@@ -390,7 +390,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  padding: 8px 16px;
+  padding: 8px 20px;
   font-family: var(--font-sans);
   font-size: var(--text-stat);
   font-weight: 500;

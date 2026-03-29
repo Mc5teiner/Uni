@@ -1136,14 +1136,14 @@ export default function KarteikartenPage() {
       </div>
 
       {/* Module filter */}
-      <div className="flex gap-2 mb-3 flex-wrap">
+      <div className="flex gap-3 mb-5 flex-wrap">
         <button
           onClick={() => setFilterModuleId('alle')}
-          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${filterModuleId === 'alle' ? 'th-btn th-btn-primary' : 'bg-[var(--th-bg-secondary,#f1f5f9)] th-text-2 hover:bg-[var(--th-bg-secondary)]'}`}
+          className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filterModuleId === 'alle' ? 'th-btn th-btn-primary' : 'bg-[var(--th-bg-secondary,#f1f5f9)] th-text-2 hover:bg-[var(--th-bg-secondary)]'}`}
         >Alle Module</button>
         {data.modules.map(m => (
           <button key={m.id} onClick={() => setFilterModuleId(m.id)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${filterModuleId === m.id ? 'text-white' : 'bg-[var(--th-bg-secondary,#f1f5f9)] th-text-2 hover:bg-[var(--th-bg-secondary)]'}`}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filterModuleId === m.id ? 'text-white' : 'bg-[var(--th-bg-secondary,#f1f5f9)] th-text-2 hover:bg-[var(--th-bg-secondary)]'}`}
             style={filterModuleId === m.id ? { backgroundColor: m.color } : {}}
           >{m.moduleNumber} {m.name}</button>
         ))}

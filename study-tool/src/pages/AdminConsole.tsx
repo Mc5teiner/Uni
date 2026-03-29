@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { admin, settings as settingsApi, adminSharedDocs, formatBytes, type AdminUser } from '../api/client'
+import { admin, auth, settings as settingsApi, adminSharedDocs, formatBytes, type AdminUser } from '../api/client'
 import type { SharedDocAdmin } from '../types'
 import {
   Users, HardDrive, Shield, ShieldOff, Trash2, Plus, Key,
   RefreshCw, Settings, Mail, Check, X, ChevronRight, Eye, EyeOff,
-  AlertTriangle, Globe, Lock, Download, Database, User as UserIcon, Share2, FileText,
+  AlertTriangle, Globe, Lock, Download, Database, User as UserIcon, Share2, FileText, UserPlus,
 } from 'lucide-react'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -737,6 +737,8 @@ export default function AdminConsolePage() {
   const [showSettings, setShowSettings] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<AdminUser | null>(null)
   const [actionLoading, setActionLoading] = useState('')
+  const [regOpen, setRegOpen] = useState<boolean | null>(null)
+  const [regSaving, setRegSaving] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -748,6 +750,9 @@ export default function AdminConsolePage() {
   }, [])
 
   useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    auth.registrationStatus().then(s => setRegOpen(s.open)).catch(() => setRegOpen(false))
+  }, [])
 
   async function toggleBan(u: AdminUser) {
     setActionLoading(u.id)
@@ -795,6 +800,53 @@ export default function AdminConsolePage() {
             <Plus size={16} /> Benutzer anlegen
           </button>
         </div>
+      </div>
+
+      {/* Registration toggle */}
+      <div className="th-card p-4 mb-5 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div
+            className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+            style={{ background: regOpen ? 'rgba(22,163,74,0.12)' : 'rgba(100,116,139,0.12)' }}
+          >
+            <UserPlus size={16} style={{ color: regOpen ? '#16a34a' : 'var(--th-text-3)' }} />
+          </div>
+          <div>
+            <div className="text-sm font-medium th-text">
+              Öffentliche Registrierung {regOpen === null ? '…' : regOpen ? 'aktiviert' : 'deaktiviert'}
+            </div>
+            <div className="text-xs th-text-3">
+              {regOpen
+                ? 'Neue Benutzer können sich selbst registrieren.'
+                : 'Nur Admins können Konten anlegen.'}
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={async () => {
+            if (regOpen === null) return
+            setRegSaving(true)
+            try {
+              const next = !regOpen
+              await settingsApi.update({ open_registration: next ? 'true' : 'false' })
+              setRegOpen(next)
+            } catch { /* ignore */ }
+            finally { setRegSaving(false) }
+          }}
+          disabled={regSaving || regOpen === null}
+          className="shrink-0 flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+          style={
+            regOpen
+              ? { background: 'rgba(220,38,38,0.1)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.3)' }
+              : { background: 'rgba(22,163,74,0.1)', color: '#16a34a', border: '1px solid rgba(22,163,74,0.3)' }
+          }
+        >
+          {regSaving
+            ? <RefreshCw size={14} className="animate-spin" />
+            : regOpen ? <Lock size={14} /> : <Globe size={14} />
+          }
+          {regOpen ? 'Deaktivieren' : 'Aktivieren'}
+        </button>
       </div>
 
       {/* Tabs */}
