@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, BookOpen, FileText, BrainCircuit,
-  Calendar, Settings, LogOut, ShieldCheck, Menu, X,
+  Calendar, Settings, LogOut, ShieldCheck,
   GraduationCap, Calculator, Timer, Search,
   Bell,
 } from 'lucide-react'
@@ -32,7 +32,6 @@ function getInitials(name: string): string {
 }
 
 export default function Layout() {
-  const [mobileOpen,  setMobileOpen]  = useState(false)
   const [searchOpen,  setSearchOpen]  = useState(false)
   const { data }                      = useApp()
   const { user, logout }              = useAuth()
@@ -86,17 +85,6 @@ export default function Layout() {
             className="flex items-center gap-4 px-4 md:px-6"
             style={{ height: '48px', borderBottom: '0.5px solid var(--p3)' }}
           >
-            {/* Mobile hamburger */}
-            <button
-              onClick={() => setMobileOpen(o => !o)}
-              className="md:hidden th-icon-btn"
-              aria-label="Navigationsmenü"
-              aria-expanded={mobileOpen}
-              style={{ color: 'var(--ink2)' }}
-            >
-              {mobileOpen ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
-            </button>
-
             {/* Brand */}
             <div className="flex items-center gap-2 min-w-0">
               <GraduationCap size={18} style={{ color: 'var(--am)', flexShrink: 0 }} aria-hidden="true" />
@@ -214,67 +202,6 @@ export default function Layout() {
             )}
           </nav>
         </header>
-
-        {/* ═══ Mobile nav dropdown ═══ */}
-        {mobileOpen && (
-          <>
-            <div
-              className="fixed inset-0 z-[200] md:hidden"
-              style={{ background: 'rgba(26,21,16,0.35)' }}
-              onClick={() => setMobileOpen(false)}
-              aria-hidden="true"
-            />
-            <nav
-              className="fixed top-[48px] left-0 right-0 z-[300] md:hidden"
-              style={{
-                background: 'var(--p2)',
-                borderBottom: '0.5px solid var(--p3)',
-                padding: '8px',
-              }}
-              aria-label="Mobile Navigation"
-            >
-              <ul className="space-y-0.5" role="list">
-                {navItems.map(({ to, icon: Icon, label, end }) => (
-                  <li key={to}>
-                    <NavLink
-                      to={to}
-                      end={end}
-                      onClick={() => setMobileOpen(false)}
-                      className={({ isActive }) =>
-                        `th-nav-item w-full${isActive ? ' th-nav-item-active' : ''}`
-                      }
-                    >
-                      {({ isActive }) => (
-                        <>
-                          <Icon size={16} aria-hidden="true" style={{ opacity: isActive ? 1 : 0.6 }} />
-                          <span>{label}</span>
-                        </>
-                      )}
-                    </NavLink>
-                  </li>
-                ))}
-                {user?.role === 'admin' && (
-                  <li>
-                    <NavLink
-                      to="/admin"
-                      onClick={() => setMobileOpen(false)}
-                      className={({ isActive }) =>
-                        `th-nav-item w-full${isActive ? ' th-nav-item-active' : ''}`
-                      }
-                    >
-                      {({ isActive }) => (
-                        <>
-                          <ShieldCheck size={16} aria-hidden="true" style={{ opacity: isActive ? 1 : 0.6 }} />
-                          <span>Admin-Konsole</span>
-                        </>
-                      )}
-                    </NavLink>
-                  </li>
-                )}
-              </ul>
-            </nav>
-          </>
-        )}
 
         {/* ═══ Page content ═══ */}
         <div className="flex-1 flex flex-col min-h-0">
