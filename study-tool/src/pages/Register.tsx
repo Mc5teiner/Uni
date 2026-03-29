@@ -185,8 +185,8 @@ export default function RegisterPage() {
                     <button
                       type="button"
                       onClick={() => setShowPw(v => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 th-icon-btn"
-                      style={{ color: 'var(--th-text-3)', width: '1.75rem', height: '1.75rem' }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center"
+                      style={{ color: 'var(--th-text-3)', width: '1.75rem', height: '1.75rem', background: 'none', border: 'none', cursor: 'pointer' }}
                       aria-label={showPw ? 'Passwort verbergen' : 'Passwort anzeigen'}
                     >
                       {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
